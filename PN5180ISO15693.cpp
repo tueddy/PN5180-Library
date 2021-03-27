@@ -22,8 +22,8 @@
 #include "PN5180ISO15693.h"
 #include "Debug.h"
 
-PN5180ISO15693::PN5180ISO15693(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin) 
-              : PN5180(SSpin, BUSYpin, RSTpin) {
+PN5180ISO15693::PN5180ISO15693(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, SPIClass &spi) 
+              : PN5180(SSpin, BUSYpin, RSTpin, spi) {
 }
 
 /*

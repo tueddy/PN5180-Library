@@ -91,8 +91,8 @@
 #error Please define your pinout here!
 #endif
 
-PN5180ISO14443 nfc14443(PN5180_NSS, PN5180_BUSY, PN5180_RST);
-PN5180ISO15693 nfc15693(PN5180_NSS, PN5180_BUSY, PN5180_RST);
+PN5180ISO14443 nfc14443(PN5180_NSS, PN5180_BUSY, PN5180_RST, SPI);
+PN5180ISO15693 nfc15693(PN5180_NSS, PN5180_BUSY, PN5180_RST, SPI);
 
 void setup() {
   Serial.begin(115200);
@@ -101,6 +101,7 @@ void setup() {
   Serial.println(F("PN5180 ISO14443 Demo Sketch"));
 
   nfc14443.begin();
+  nfc15693.begin();
 
   Serial.println(F("----------------------------------"));
   Serial.println(F("PN5180 Hard-Reset..."));

@@ -39,7 +39,7 @@ enum ISO15693ErrorCode {
 class PN5180ISO15693 : public PN5180 {
 
 public:
-  PN5180ISO15693(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin);
+  PN5180ISO15693(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, SPIClass &spi=SPI);
   
 private:
   ISO15693ErrorCode issueISO15693Command(uint8_t *cmd, uint8_t cmdLen, uint8_t **resultPtr);
