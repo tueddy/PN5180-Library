@@ -71,6 +71,7 @@
  *
  */
 
+
 #include <PN5180.h>
 #include <PN5180ISO14443.h>
 #include <PN5180ISO15693.h>
@@ -91,8 +92,9 @@
 #error Please define your pinout here!
 #endif
 
-PN5180ISO14443 nfc14443(PN5180_NSS, PN5180_BUSY, PN5180_RST, SPI);
-PN5180ISO15693 nfc15693(PN5180_NSS, PN5180_BUSY, PN5180_RST, SPI);
+  
+PN5180ISO14443 nfc14443(PN5180_NSS, PN5180_BUSY, PN5180_RST); 
+PN5180ISO15693 nfc15693(PN5180_NSS, PN5180_BUSY, PN5180_RST);
 
 void setup() {
   Serial.begin(115200);
@@ -101,7 +103,6 @@ void setup() {
   Serial.println(F("PN5180 ISO14443 Demo Sketch"));
 
   nfc14443.begin();
-  nfc15693.begin();
 
   Serial.println(F("----------------------------------"));
   Serial.println(F("PN5180 Hard-Reset..."));
@@ -158,13 +159,15 @@ void loop() {
     Serial.println("Free heap: " + String(ESP.getFreeHeap())); 
   #endif
   uint8_t uid[10];
+  unsigned long StartTime, ElapsedTime;
   // check for ISO-14443 card
+  StartTime = millis();
   nfc14443.reset();
   nfc14443.setupRF();
   if (nfc14443.isCardPresent()) {
     uint8_t uidLength = nfc14443.readCardSerial(uid);
     if (uidLength > 0) {
-      Serial.print(F("ISO14443 card found, UID="));
+      Serial.print(F("ISO-14443 card found, UID="));
       for (int i=0; i<uidLength; i++) {
         Serial.print(uid[i] < 0x10 ? " 0" : " ");
         Serial.print(uid[i], HEX);
@@ -175,8 +178,12 @@ void loop() {
       return;
     }
   } 
-
+  ElapsedTime = (millis() - StartTime);
+  Serial.print("time for reading ISO-14443: ");
+  Serial.print(ElapsedTime);
+  Serial.println(" mSec.");
   // check for ISO-15693 card
+  StartTime = millis();
   nfc15693.reset();
   nfc15693.setupRF();
   // check for ICODE-SLIX2 password protected tag
@@ -188,7 +195,7 @@ void loop() {
   // try to read ISO15693 inventory
   ISO15693ErrorCode rc = nfc15693.getInventory(uid);
   if (rc == ISO15693_EC_OK) {
-    Serial.print(F("ISO15693 card found, UID="));
+    Serial.print(F("ISO-15693 card found, UID="));
     for (int i=0; i<8; i++) {
       Serial.print(uid[7-i] < 0x10 ? " 0" : " ");
       Serial.print(uid[7-i], HEX); // LSB is first
@@ -204,6 +211,10 @@ void loop() {
     delay(1000); 
     return;
   }
+  ElapsedTime = (millis() - StartTime);
+  Serial.print("time for reading ISO-15693: ");
+  Serial.print(ElapsedTime);
+  Serial.println(" mSec.");
 
   // no card detected
   Serial.println(F("*** No card detected!"));

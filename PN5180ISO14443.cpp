@@ -23,8 +23,8 @@
 #include <PN5180.h>
 #include "Debug.h"
 
-PN5180ISO14443::PN5180ISO14443(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, SPIClass &spi) 
-              : PN5180(SSpin, BUSYpin, RSTpin, spi) {
+PN5180ISO14443::PN5180ISO14443(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin) 
+              : PN5180(SSpin, BUSYpin, RSTpin) {
 }
 
 bool PN5180ISO14443::setupRF() {
@@ -81,6 +81,16 @@ uint8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	// Clear TX CRC
 	if (!writeRegisterWithAndMask(CRC_TX_CONFIG, 0xFFFFFFFE))
 	  return 0;
+	// Clear the interrupt register IRQ_STATUS
+	clearIRQStatus(TX_IRQ_STAT);
+	// Sets the PN5180 into IDLE state  
+	if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xFFFFFFF8))
+	  return 0;
+	
+	// Activates TRANSCEIVE routine  
+	if (!writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003))
+	  return 0;
+	
 	//Send REQA/WUPA, 7 bits in last byte
 	cmd[0] = (kind == 0) ? 0x26 : 0x52;
 	if (!sendData(cmd, 1, 0x07))
@@ -162,7 +172,7 @@ uint8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 bool PN5180ISO14443::mifareBlockRead(uint8_t blockno, uint8_t *buffer) {
 	bool success = false;
 	uint16_t len;
-	uint8_t cmd[2];
+	uint8_t cmd[1];
 	// Send mifare command 30,blockno
 	cmd[0] = 0x30;
 	cmd[1] = blockno;
@@ -181,7 +191,7 @@ bool PN5180ISO14443::mifareBlockRead(uint8_t blockno, uint8_t *buffer) {
 
 
 uint8_t PN5180ISO14443::mifareBlockWrite16(uint8_t blockno, uint8_t *buffer) {
-	uint8_t cmd[2];
+	uint8_t cmd[1];
 	// Clear RX CRC
 	writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE);
 
@@ -223,13 +233,15 @@ uint8_t PN5180ISO14443::readCardSerial(uint8_t *buffer) {
     // UID 7 bytes : offset 3 to 9 is UID
     for (int i = 0; i < 10; i++) response[i] = 0;
     uidLength = activateTypeA(response, 1);
-	if ((response[0] == 0xFF) && (response[1] == 0xFF))
+	if (uidLength == 0)
 	  return 0;
+	if ((response[0] == 0xFF) && (response[1] == 0xFF))
+	  uidLength = 0;
 	// check for valid uid
 	if ((response[3] == 0x00) && (response[4] == 0x00) && (response[5] == 0x00) && (response[6] == 0x00))
-	  return 0;
+	  uidLength = 0;
 	if ((response[3] == 0xFF) && (response[4] == 0xFF) && (response[5] == 0xFF) && (response[6] == 0xFF))
-	  return 0;
+	  uidLength = 0;
     for (int i = 0; i < 7; i++) buffer[i] = response[i+3];
 	mifareHalt();
 	return uidLength;  
