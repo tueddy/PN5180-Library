@@ -16,7 +16,6 @@
 // So by default SCLK is Pin 18,MISO is Pin 19, MOSI is Pin 23
 
                            
-#define WAKEUP_PIN_MASK 0x1000000000 // 2^36 in hex
 
 /*
  * Method to print the reason by which ESP32 has been awaken from sleep
@@ -78,6 +77,15 @@ void setup() {
   Serial.println(F("PN5180 Hard-Reset..."));
   nfc.reset();
 
+  Serial.println(F("----------------------------------"));
+  Serial.println(F("Reading product version..."));
+  uint8_t productVersion[2];
+  nfc.readEEprom(PRODUCT_VERSION, productVersion, sizeof(productVersion));
+  Serial.print(F("Product version="));
+  Serial.print(productVersion[1]);
+  Serial.print(".");
+  Serial.println(productVersion[0]);
+
   nfc.clearIRQStatus(0xffffffff);
   Serial.println(digitalRead(PN5180_IRQ)); //reads 0 because IRQ pin pin config is set to active high (eeprom@0x1A)  //should read 1 because when interrupt is raised GPIO4 is LOW
   Serial.println(F("Reading IRQ-Pin..."));
@@ -89,14 +97,14 @@ void setup() {
   if (nfc.prepareLPCD()) {
     Serial.println("prepareLPCD success");
   }
-  Serial.print("gpio4:"); Serial.println(digitalRead(PN5180_IRQ));
+  Serial.print("IRQ-pin:"); Serial.println(digitalRead(PN5180_IRQ));
 
   // turn on LPCD
   if (nfc.switchToLPCD(wakeupCounterInMs)) {
     Serial.println("switchToLPCD success");
       // configure wakeup pin for deep-sleep wake-up
       // esp_sleep_enable_ext0_wakeup(gpio_num_t(PN5180_IRQ), 1); //1 = High, 0 = Low
-      esp_sleep_enable_ext1_wakeup(WAKEUP_PIN_MASK, ESP_EXT1_WAKEUP_ANY_HIGH);
+      esp_sleep_enable_ext1_wakeup((1ULL << (PN5180_IRQ)), ESP_EXT1_WAKEUP_ANY_HIGH);
       // freeze pin states in deep sleep
       gpio_hold_en(gpio_num_t(PN5180_NSS)); // NSS
       gpio_hold_en(gpio_num_t(PN5180_RST)); // RST
