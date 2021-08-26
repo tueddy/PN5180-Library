@@ -378,7 +378,7 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 /*
  * The GET RANDOM NUMBER command is required to receive a random number from the label IC. 
  * The passwords that will be transmitted with the SET PASSWORD,ENABLEPRIVACY and DESTROY commands 
- * have to be calculated with the password and therandom number (see Section 9.5.3.2 "SET PASSWORD")
+ * have to be calculated with the password and the random number (see Section 9.5.3.2 "SET PASSWORD")
  */
 ISO15693ErrorCode PN5180ISO15693::getRandomNumber(uint8_t *randomData) {
   uint8_t getrandom[] = {0x02, 0xB2, 0x04};
@@ -408,6 +408,11 @@ ISO15693ErrorCode PN5180ISO15693::setPassword(uint8_t identifier, uint8_t *passw
   return rc;
 }
 
+/*
+ * The ENABLE PRIVACY command enables the ICODE SLIX2 Label IC to be set to
+ * Privacy mode if the Privacy password is correct. The ICODE SLIX2 will not respond to
+ * any command except GET RANDOM NUMBER and SET PASSWORD
+ */
 ISO15693ErrorCode PN5180ISO15693::enablePrivacy(uint8_t *password, uint8_t *random) {
   uint8_t setPrivacy[] = {0x02, 0xBA, 0x04, 0x00, 0x00, 0x00, 0x00};
   uint8_t *readBuffer;

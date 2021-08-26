@@ -172,7 +172,7 @@ uint8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 bool PN5180ISO14443::mifareBlockRead(uint8_t blockno, uint8_t *buffer) {
 	bool success = false;
 	uint16_t len;
-	uint8_t cmd[1];
+	uint8_t cmd[2];
 	// Send mifare command 30,blockno
 	cmd[0] = 0x30;
 	cmd[1] = blockno;
@@ -191,7 +191,7 @@ bool PN5180ISO14443::mifareBlockRead(uint8_t blockno, uint8_t *buffer) {
 
 
 uint8_t PN5180ISO14443::mifareBlockWrite16(uint8_t blockno, uint8_t *buffer) {
-	uint8_t cmd[1];
+	uint8_t cmd[2];
 	// Clear RX CRC
 	writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE);
 
