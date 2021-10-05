@@ -621,13 +621,23 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
  */
 void PN5180::reset() {
   digitalWrite(PN5180_RST, LOW);  // at least 10us required
-  delayMicroseconds(10);
+  delay(1);
   digitalWrite(PN5180_RST, HIGH); // 2ms to ramp up required
-  delay(2);
+  delay(5);
 
-  while (0 == (IDLE_IRQ_STAT & getIRQStatus())); // wait for system to start up
-
-  clearIRQStatus(0xffffffff); // clear all flags
+  unsigned long startedWaiting = millis();
+  while (0 == (IDLE_IRQ_STAT & getIRQStatus())) {
+	// wait for system to start up (with timeout)
+    if (millis() - startedWaiting > commandTimeout) {
+		PN5180DEBUG(F("reset failed (timeout)!!!\n"));
+		// try again with larger time
+		digitalWrite(PN5180_RST, LOW);  
+		delay(10);
+		digitalWrite(PN5180_RST, HIGH); 
+		delay(50);
+		return;
+	}
+  }
 }
 
 /**
