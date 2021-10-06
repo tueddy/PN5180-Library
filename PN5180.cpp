@@ -484,7 +484,11 @@ bool PN5180::setRF_on() {
   transceiveCommand(cmd, 2);
   SPI.endTransaction();
 
-  while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())); // wait for RF field to set up
+  unsigned long startedWaiting = millis();
+  while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
+    if (millis() - startedWaiting > 500) return false; 
+  }; 
+  
   clearIRQStatus(TX_RFON_IRQ_STAT);
   return true;
 }
