@@ -51,6 +51,8 @@ uint16_t PN5180ISO14443::rxBytesReceived() {
 	len = (uint16_t)(rxStatus & 0x000001ff);
 	return len;
 }
+
+
 /*
 * buffer : must be 10 byte array
 * buffer[0-1] is ATQA
@@ -68,9 +70,10 @@ uint16_t PN5180ISO14443::rxBytesReceived() {
 uint8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	uint8_t cmd[7];
 	uint8_t uidLength = 0;
-	// Load standard TypeA protocol
-	if (!loadRFConfig(0x0, 0x80)) 
-	  return 0;
+	
+	// Load standard TypeA protocol already done in reset()
+//	if (!loadRFConfig(0x0, 0x80)) 
+//	  return 0;
 
 	// OFF Crypto
 	if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xFFFFFFBF))
@@ -81,8 +84,6 @@ uint8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	// Clear TX CRC
 	if (!writeRegisterWithAndMask(CRC_TX_CONFIG, 0xFFFFFFFE))
 	  return 0;
-	// Clear the interrupt register IRQ_STATUS
-	clearIRQStatus(TX_IRQ_STAT);
 	// Sets the PN5180 into IDLE state  
 	if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xFFFFFFF8))
 	  return 0;
@@ -106,17 +107,25 @@ uint8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	//Read 5 bytes, we will store at offset 2 for later usage
 	if (!readData(5, cmd+2)) 
 	  return 0;
+	// We do have a card now! enable CRC and send anticollision
+	// save the first 4 bytes of UID
+	for (int i = 0; i < 4; i++) buffer[i] = cmd[2 + i];
+	
 	//Enable RX CRC calculation
 	if (!writeRegisterWithOrMask(CRC_RX_CONFIG, 0x01)) 
 	  return 0;
 	//Enable TX CRC calculation
 	if (!writeRegisterWithOrMask(CRC_TX_CONFIG, 0x01)) 
 	  return 0;
+	  
+
 	//Send Select anti collision 1, the remaining bytes are already in offset 2 onwards
 	cmd[0] = 0x93;
 	cmd[1] = 0x70;
-	if (!sendData(cmd, 7, 0x00)) 
-	  return 0;
+	if (!sendData(cmd, 7, 0x00)) {
+		// no remaining bytes, we have a 4 byte UID
+		return 4;
+	}
 	//Read 1 byte SAK into buffer[2]
 	if (!readData(1, buffer+2)) 
 	  return 0;
@@ -238,13 +247,20 @@ uint8_t PN5180ISO14443::readCardSerial(uint8_t *buffer) {
 	if ((response[0] == 0xFF) && (response[1] == 0xFF))
 	  uidLength = 0;
 	// check for valid uid
-	if ((response[3] == 0x00) && (response[4] == 0x00) && (response[5] == 0x00) && (response[6] == 0x00))
-	  uidLength = 0;
-	if ((response[3] == 0xFF) && (response[4] == 0xFF) && (response[5] == 0xFF) && (response[6] == 0xFF))
-	  uidLength = 0;
-    for (int i = 0; i < 7; i++) buffer[i] = response[i+3];
+	bool validUID = false;
+	for (int i = 0; i < uidLength; i++) {
+		if ((response[i+3] != 0x00) && (response[i+3] != 0xFF)) {
+			validUID = true;
+			break;
+		}
+	}
 	mifareHalt();
-	return uidLength;  
+	if (validUID) {
+		for (int i = 0; i < uidLength; i++) buffer[i] = response[i+3];
+		return uidLength;
+	} else {
+		return 0;
+	}
 }
 
 bool PN5180ISO14443::isCardPresent() {

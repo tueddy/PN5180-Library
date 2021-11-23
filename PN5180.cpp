@@ -486,7 +486,10 @@ bool PN5180::setRF_on() {
 
   unsigned long startedWaiting = millis();
   while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
-    if (millis() - startedWaiting > 500) return false; 
+    if (millis() - startedWaiting > 500) {
+	  PN5180DEBUG(F("Set RF ON timeout\n"));
+	  return false; 
+	}
   }; 
   
   clearIRQStatus(TX_RFON_IRQ_STAT);
@@ -563,7 +566,10 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   // 0.
   unsigned long startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
-    if (millis() - startedWaiting > commandTimeout) return false;
+    if (millis() - startedWaiting > commandTimeout) {
+		PN5180DEBUG("transceiveCommand timeout (send/0)");
+		return false;
+	};
   }; // wait until busy is low
   // 1.
   digitalWrite(PN5180_NSS, LOW); delay(1);
@@ -574,14 +580,20 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   // 3.
   startedWaiting = millis();
   while (HIGH != digitalRead(PN5180_BUSY)) {
-    if (millis() - startedWaiting > commandTimeout) return false;
+    if (millis() - startedWaiting > commandTimeout) {
+		PN5180DEBUG("transceiveCommand timeout (send/3)");
+		return false;
+	}
   }; // wait until busy is high
   // 4.
   digitalWrite(PN5180_NSS, HIGH); delay(1);
   // 5.
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
-    if (millis() - startedWaiting > commandTimeout) return false;
+    if (millis() - startedWaiting > commandTimeout) {
+		PN5180DEBUG("transceiveCommand timeout (send/5)");
+		return false;
+	};
   }; // wait until busy is low
 
   // check, if write-only
@@ -590,7 +602,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   PN5180DEBUG(F("Receiving SPI frame...\n"));
 
   // 1.
-  digitalWrite(PN5180_NSS, LOW); delay(1);
+  digitalWrite(PN5180_NSS, LOW); 
   // 2.
   for (uint8_t i=0; i<recvBufferLen; i++) {
     recvBuffer[i] = SPI.transfer(0xff);
@@ -598,14 +610,20 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   // 3.
   startedWaiting = millis();
   while (HIGH != digitalRead(PN5180_BUSY)) {
-    if (millis() - startedWaiting > commandTimeout) return false;
+    if (millis() - startedWaiting > commandTimeout) {
+		PN5180DEBUG("transceiveCommand timeout (receive/3)");
+		return false;
+	};
   }; // wait until busy is high
   // 4.
   digitalWrite(PN5180_NSS, HIGH); 
   // 5.
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
-    if (millis() - startedWaiting > commandTimeout) return false;
+    if (millis() - startedWaiting > commandTimeout) {
+		PN5180DEBUG("transceiveCommand timeout (receive/5)");
+		return false;
+	};
   }; // wait until busy is low
 
 #ifdef DEBUG
