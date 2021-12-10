@@ -510,7 +510,13 @@ bool PN5180::setRF_off() {
   transceiveCommand(cmd, 2);
   SPI.endTransaction();
 
-  while (0 == (TX_RFOFF_IRQ_STAT & getIRQStatus())); // wait for RF field to shut down
+  unsigned long startedWaiting = millis();
+  while (0 == (TX_RFOFF_IRQ_STAT & getIRQStatus())) {   // wait for RF field to shut down
+    if (millis() - startedWaiting > 500) {
+	  PN5180DEBUG(F("Set RF OFF timeout\n"));
+	  return false; 
+	}
+  }; 
   clearIRQStatus(TX_RFOFF_IRQ_STAT);
   return true;
 }
@@ -608,7 +614,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
     recvBuffer[i] = SPI.transfer(0xff);
   }
   // 3.
-  startedWaiting = millis();
+  startedWaiting = millis(); delay(1);
   while (HIGH != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
 		PN5180DEBUG("transceiveCommand timeout (receive/3)");
