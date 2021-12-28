@@ -52,21 +52,6 @@ uint16_t PN5180ISO14443::rxBytesReceived() {
 	return len;
 }
 
-/* Get the number of bytes to read and the valid number of bits in the last byte
-* If the full byte is valid then the value of the valid bit is 0
-* 
-* returns a tuple with the number of bytes to read and the number of valid bits in the last byte. 
-* If all bits are valid, then the value of valid bits is 0
-*/
-uint32_t PN5180ISO14443::GetNumberOfBytesReceivedAndValidBits() {
-	uint32_t rxStatus;
-	readRegister(RX_STATUS, &rxStatus);
-    // from NXP documentation PN5180AXX-C3.pdf, Page 98
-//    return uint32_t((rxStatus[0] + ((rxStatus[1] & 0x01) << 8)), (rxStatus[1] & 0b1110_0000) >> 5);
-//    return (rxStatus[0] + ((rxStatus[1] & 0x01) << 8));
-    return (uint16_t)(rxStatus & 0x000001ff);
-}
-
 
 
 /*
@@ -96,72 +81,102 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	}
 	// activate RF field
 	setRF_on();
-	delay(5);
+	// wait RF-field to ramp-up
+	delay(10);
+	
 	// OFF Crypto
 	if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xFFFFFFBF)) {
 		PN5180DEBUG(F("*** ERROR: OFF Crypto failed!\n"));
 		return -1;
 	}
-	// Clear RX CRC
+	// clear RX CRC
 	if (!writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE)) {
 		PN5180DEBUG(F("*** ERROR: Clear RX CRC failed!\n"));
 		return -1;
 	}
-	// Clear TX CRC
+	// clear TX CRC
 	if (!writeRegisterWithAndMask(CRC_TX_CONFIG, 0xFFFFFFFE)) {
 		PN5180DEBUG(F("*** ERROR: Clear TX CRC failed!\n"));
 		return -1;
 	}
-	// clear all IRQ flags
-	clearIRQStatus(0xffffffff); 
 
-	// Sets the PN5180 into IDLE state  
+	// set the PN5180 into IDLE state  
 	if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xFFFFFFF8)) {
 		PN5180DEBUG(F("*** ERROR: set IDLE state failed!\n"));
 		return -1;
 	}
 		
-	  // Activates TRANSCEIVE routine  
+	  // activate TRANSCEIVE routine  
 	if (!writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003)) {
 		PN5180DEBUG(F("*** ERROR: Activates TRANSCEIVE routine failed!\n"));
 		return -1;
 	}
 	
+	// wait for wait-transmit state
 	PN5180TransceiveStat transceiveState = getTransceiveState();
 	if (PN5180_TS_WaitTransmit != transceiveState) {
 		PN5180DEBUG(F("*** ERROR: Transceiver not in state WaitTransmit!?\n"));
 		return -1;
 	}
 	
+/*	uint8_t irqConfig = 0b0000000; // Set IRQ active low + clear IRQ-register
+    writeEEprom(IRQ_PIN_CONFIG, &irqConfig, 1);
+    // enable only RX_IRQ_STAT, TX_IRQ_STAT and general error IRQ
+    writeRegister(IRQ_ENABLE, RX_IRQ_STAT | TX_IRQ_STAT | GENERAL_ERROR_IRQ_STAT);  
+*/
+
+	// clear all IRQs
+	clearIRQStatus(0xffffffff); 
+
 	//Send REQA/WUPA, 7 bits in last byte
 	cmd[0] = (kind == 0) ? 0x26 : 0x52;
 	if (!sendData(cmd, 1, 0x07)) {
 		PN5180DEBUG(F("*** ERROR: Send REQA/WUPA failed!\n"));
 		return 0;
 	}
-	  	
 	
+	// wait some mSecs for end of RF receiption
+	delay(10);
+
 	// READ 2 bytes ATQA into  buffer
 	if (!readData(2, buffer)) {
 		PN5180DEBUG(F("*** ERROR: READ 2 bytes ATQA failed!\n"));
 		return 0;
 	}
-	//Send Anti collision 1, 8 bits in last byte
+	
+	// 
+	unsigned long startedWaiting = millis();
+	while (PN5180_TS_WaitTransmit != getTransceiveState()) {   
+		if (millis() - startedWaiting > 200) {
+			PN5180DEBUG(F("*** ERROR: timeout in PN5180_TS_WaitTransmit!\n"));
+			return -1; 
+		}	
+	}
+	
+	// clear all IRQs
+	clearIRQStatus(0xffffffff); 
+	
+	// send Anti collision 1, 8 bits in last byte
 	cmd[0] = 0x93;
 	cmd[1] = 0x20;
 	if (!sendData(cmd, 2, 0x00)) {
 		PN5180DEBUG(F("*** ERROR: Send Anti collision 1 failed!\n"));
-		//Serial.print("Send Anti collision 1 failed!");
 		return -2;
 	}
-	uint8_t numBytes = GetNumberOfBytesReceivedAndValidBits();
+	
+	// wait some mSecs for end of RF receiption
+	delay(5);
+
+	uint8_t numBytes = rxBytesReceived();
 	if (numBytes != 5) {
 		PN5180DEBUG(F("*** ERROR: Read 5 bytes sak failed!\n"));
 		return -2;
 	};
-	//Read 5 bytes sak, we will store at offset 2 for later usage
-	if (!readData(5, cmd+2)) 
-	  return -2;
+	// read 5 bytes sak, we will store at offset 2 for later usage
+	if (!readData(5, cmd+2)) {
+		Serial.println("Read 5 bytes failed!");
+		return -2;
+	}
 	// We do have a card now! enable CRC and send anticollision
 	// save the first 4 bytes of UID
 	for (int i = 0; i < 4; i++) buffer[i] = cmd[2 + i];
@@ -286,7 +301,7 @@ bool PN5180ISO14443::mifareHalt() {
 	return true;
 }
 
-int8_t PN5180ISO14443::readCardSerial(uint8_t *buffer, uint16_t timeoutMS) {
+int8_t PN5180ISO14443::readCardSerial(uint8_t *buffer) {
   
     uint8_t response[10];
 	int8_t uidLength;
@@ -297,18 +312,8 @@ int8_t PN5180ISO14443::readCardSerial(uint8_t *buffer, uint16_t timeoutMS) {
     // UID 7 bytes : offset 3 to 9 is UID
     for (int i = 0; i < 10; i++) response[i] = 0;
 	// try to activate Type A until response or timeout
-	uint32_t StartTimestamp = millis();
-	while ((millis() - StartTimestamp) < timeoutMS) {
-		uidLength = activateTypeA(response, 1);
-		if (uidLength >= 0)
-		  break;
-		if (uidLength < 0) {
-		  // error, reset and try again
-		  reset();
-		  setupRF();
-		}
-		
-	}
+	uidLength = activateTypeA(response, 0);
+
 	
 	if (uidLength <= 0)
 	  return uidLength;
@@ -322,7 +327,7 @@ int8_t PN5180ISO14443::readCardSerial(uint8_t *buffer, uint16_t timeoutMS) {
 			break;
 		}
 	}
-	mifareHalt();
+//	mifareHalt();
 	if (validUID) {
 		for (int i = 0; i < uidLength; i++) buffer[i] = response[i+3];
 		return uidLength;
@@ -331,9 +336,9 @@ int8_t PN5180ISO14443::readCardSerial(uint8_t *buffer, uint16_t timeoutMS) {
 	}
 }
 
-bool PN5180ISO14443::isCardPresent(uint16_t timeoutMS) {
+bool PN5180ISO14443::isCardPresent() {
+
     uint8_t buffer[10];
-	
-	return (readCardSerial(buffer, timeoutMS) >=4);
+	return (readCardSerial(buffer) >=4);
 }
 

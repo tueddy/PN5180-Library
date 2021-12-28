@@ -41,8 +41,8 @@ public:
    */
 public:   
   bool setupRF();
-  int8_t readCardSerial(uint8_t *buffer, uint16_t timeoutMS = 1000);    
-  bool isCardPresent(uint16_t timeoutMS = 1000);    
+  int8_t readCardSerial(uint8_t *buffer);    
+  bool isCardPresent();    
 };
 
 #endif /* PN5180ISO14443_H */
