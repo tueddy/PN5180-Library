@@ -242,7 +242,7 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	      return -2;
 		//Read 1 byte SAK into buffer[2]
 		if (!readData(1, buffer + 2)) 
-	      return -2;	
+	      return -2;
 		uidLength = 7;
 	}
     return uidLength;
@@ -327,6 +327,24 @@ int8_t PN5180ISO14443::readCardSerial(uint8_t *buffer) {
 			break;
 		}
 	}
+	if (uidLength == 4) {
+		if ((response[3] == 0x88)) {
+			// must not be the CT-flag (0x88)!
+			validUID = false;
+		};
+	}
+	if (uidLength == 7) {
+		if ((response[6] == 0x88)) {
+			// must not be the CT-flag (0x88)!
+			validUID = false;
+		};
+		if ((response[6] == 0x00) && (response[7] == 0x00) && (response[8] == 0x00) && (response[9] == 0x00)) {
+			validUID = false;
+		};
+		if ((response[6] == 0xFF) && (response[7] == 0xFF) && (response[8] == 0xFF) && (response[9] == 0xFF)) {
+			validUID = false;
+		};
+	};
 //	mifareHalt();
 	if (validUID) {
 		for (int i = 0; i < uidLength; i++) buffer[i] = response[i+3];
