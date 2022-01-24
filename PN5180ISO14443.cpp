@@ -317,11 +317,20 @@ int8_t PN5180ISO14443::readCardSerial(uint8_t *buffer) {
 	
 	if (uidLength <= 0)
 	  return uidLength;
+	// UID length must be at least 4 bytes
+	if (uidLength < 4)
+	  return 0;
 	if ((response[0] == 0xFF) && (response[1] == 0xFF))
 	  uidLength = 0;
-	// check for valid uid
+		
+	// first UID byte should not be 0x00 or 0xFF
+	if ((response[3] == 0x00) || (response[3] == 0xFF)) 
+		uidLength = 0;
+		
+	// check for valid uid, skip first byte (0x04)
+	// 0x04 0x00 0xFF 0x00 => invalid uid
 	bool validUID = false;
-	for (int i = 0; i < uidLength; i++) {
+	for (int i = 1; i < uidLength; i++) {
 		if ((response[i+3] != 0x00) && (response[i+3] != 0xFF)) {
 			validUID = true;
 			break;

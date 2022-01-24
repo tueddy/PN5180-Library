@@ -60,7 +60,7 @@ enum PN5180TransceiveStat {
 };
 
 // PN5180 IRQ_STATUS
-#define RX_IRQ_STAT         	(1<<0)  // End of RF rececption IRQ
+#define RX_IRQ_STAT         	(1<<0)  // End of RF receiption IRQ
 #define TX_IRQ_STAT         	(1<<1)  // End of RF transmission IRQ
 #define IDLE_IRQ_STAT       	(1<<2)  // IDLE IRQ
 #define RFOFF_DET_IRQ_STAT  	(1<<6)  // RF Field OFF detection IRQ
