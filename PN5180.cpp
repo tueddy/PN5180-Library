@@ -581,9 +581,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   // 1.
   digitalWrite(PN5180_NSS, LOW); delay(1);
   // 2.
-  for (uint8_t i=0; i<sendBufferLen; i++) {
-    PN5180_SPI.transfer(sendBuffer[i]);
-  }
+  PN5180_SPI.transfer((uint8_t*)sendBuffer, sendBufferLen);	
   // 3.
   startedWaiting = millis();
   while (HIGH != digitalRead(PN5180_BUSY)) {
@@ -604,18 +602,16 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   }; // wait until busy is low
 
   // check, if write-only
-  //
   if ((0 == recvBuffer) || (0 == recvBufferLen)) return true;
   PN5180DEBUG(F("Receiving SPI frame...\n"));
 
   // 1.
   digitalWrite(PN5180_NSS, LOW); 
   // 2.
-  for (uint8_t i=0; i<recvBufferLen; i++) {
-    recvBuffer[i] = PN5180_SPI.transfer(0xff);
-  }
+  memset(recvBuffer, 0xFF, recvBufferLen);
+  PN5180_SPI.transfer(recvBuffer, recvBufferLen);
   // 3.
-  startedWaiting = millis(); delay(1);
+  startedWaiting = millis(); //delay(1);
   while (HIGH != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
 		PN5180DEBUG("transceiveCommand timeout (receive/3)");
