@@ -177,9 +177,6 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 		Serial.println("Read 5 bytes failed!");
 		return -2;
 	}
-	// We do have a card now! enable CRC and send anticollision
-	// save the first 4 bytes of UID
-	for (int i = 0; i < 4; i++) buffer[i] = cmd[2 + i];
 	
 	//Enable RX CRC calculation
 	if (!writeRegisterWithOrMask(CRC_RX_CONFIG, 0x01)) 
