@@ -523,10 +523,11 @@ ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(uint8_t *cmd, uint8_t cmd
 	return EC_NO_CARD;
   }
   
+  unsigned long startedWaiting = millis();
   while(!(irqR & RX_IRQ_STAT)) {
-	delay(1);
-	irqR = getIRQStatus();
-  }
+	if (millis() - startedWaiting > commandTimeout) {
+		return EC_NO_CARD;
+	}
   
   uint32_t rxStatus;
   readRegister(RX_STATUS, &rxStatus);
