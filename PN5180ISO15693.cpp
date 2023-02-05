@@ -528,6 +528,7 @@ ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(uint8_t *cmd, uint8_t cmd
 	if (millis() - startedWaiting > commandTimeout) {
 		return EC_NO_CARD;
 	}
+  }
   
   uint32_t rxStatus;
   readRegister(RX_STATUS, &rxStatus);
