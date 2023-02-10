@@ -104,10 +104,10 @@ bool PN5180::writeRegister(uint8_t reg, uint32_t value) {
   uint8_t buf[6] = { PN5180_WRITE_REGISTER, reg, p[0], p[1], p[2], p[3] };
 
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
-  transceiveCommand(buf, 6);
+  bool success = transceiveCommand(buf, 6);
   PN5180_SPI.endTransaction();
 
-  return true;
+  return success;
 }
 
 /*
@@ -134,10 +134,10 @@ bool PN5180::writeRegisterWithOrMask(uint8_t reg, uint32_t mask) {
   uint8_t buf[6] = { PN5180_WRITE_REGISTER_OR_MASK, reg, p[0], p[1], p[2], p[3] };
 
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
-  transceiveCommand(buf, 6);
+  bool success = transceiveCommand(buf, 6);
   PN5180_SPI.endTransaction();
 
-  return true;
+  return success;
 }
 
 /*
@@ -164,10 +164,10 @@ bool PN5180::writeRegisterWithAndMask(uint8_t reg, uint32_t mask) {
   uint8_t buf[6] = { PN5180_WRITE_REGISTER_AND_MASK, reg, p[0], p[1], p[2], p[3] };
 
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
-  transceiveCommand(buf, 6);
+  bool success = transceiveCommand(buf, 6);
   PN5180_SPI.endTransaction();
 
-  return true;
+  return success;
 }
 
 /*
@@ -185,14 +185,14 @@ bool PN5180::readRegister(uint8_t reg, uint32_t *value) {
   uint8_t cmd[2] = { PN5180_READ_REGISTER, reg };
 
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
-  transceiveCommand(cmd, 2, (uint8_t*)value, 4);
+  bool success = transceiveCommand(cmd, 2, (uint8_t*)value, 4);
   PN5180_SPI.endTransaction();
 
   PN5180DEBUG(F("Register value=0x"));
   PN5180DEBUG(formatHex(*value));
   PN5180DEBUG("\n");
 
-  return true;
+  return success;
 }
 
 /*
@@ -204,9 +204,9 @@ bool PN5180::writeEEprom(uint8_t addr, uint8_t *buffer, uint8_t len) {
 	cmd[1] = addr;
 	for (int i = 0; i < len; i++) cmd[2 + i] = buffer[i];
 	PN5180_SPI.beginTransaction(SPI_SETTINGS);
-	transceiveCommand(cmd, len + 2);
+	bool success = transceiveCommand(cmd, len + 2);
 	PN5180_SPI.endTransaction();
-	return true;
+	return success;
 }
 
 /*
@@ -235,7 +235,7 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
   uint8_t cmd[3] = { PN5180_READ_EEPROM, addr, uint8_t(len) };
 
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
-  transceiveCommand(cmd, 3, buffer, len);
+  bool success = transceiveCommand(cmd, 3, buffer, len);
   PN5180_SPI.endTransaction();
 
 #ifdef DEBUG
@@ -247,7 +247,7 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
   PN5180DEBUG("\n");
 #endif
 
-  return true;
+  return success;
 }
 
 
@@ -465,10 +465,10 @@ bool PN5180::loadRFConfig(uint8_t txConf, uint8_t rxConf) {
   uint8_t cmd[3] = { PN5180_LOAD_RF_CONFIG, txConf, rxConf };
 
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
-  transceiveCommand(cmd, 3);
+  bool success = transceiveCommand(cmd, 3);
   PN5180_SPI.endTransaction();
 
-  return true;
+  return success;
 }
 
 /*
@@ -482,9 +482,9 @@ bool PN5180::setRF_on() {
   uint8_t cmd[2] = { PN5180_RF_ON, 0x00 };
 
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
-  transceiveCommand(cmd, 2);
+  bool success = transceiveCommand(cmd, 2);
   PN5180_SPI.endTransaction();
-
+  
   unsigned long startedWaiting = millis();
   while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
     if (millis() - startedWaiting > 500) {
@@ -494,7 +494,7 @@ bool PN5180::setRF_on() {
   }; 
   
   clearIRQStatus(TX_RFON_IRQ_STAT);
-  return true;
+  return success;
 }
 
 /*
@@ -508,7 +508,7 @@ bool PN5180::setRF_off() {
   uint8_t cmd[2] { PN5180_RF_OFF, 0x00 };
 
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
-  transceiveCommand(cmd, 2);
+  bool success = transceiveCommand(cmd, 2);
   PN5180_SPI.endTransaction();
 
   unsigned long startedWaiting = millis();
@@ -519,7 +519,7 @@ bool PN5180::setRF_off() {
 	}
   }; 
   clearIRQStatus(TX_RFOFF_IRQ_STAT);
-  return true;
+  return success;
 }
 
 //---------------------------------------------------------------------------------------------
