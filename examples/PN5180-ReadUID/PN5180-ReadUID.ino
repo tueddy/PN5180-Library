@@ -165,7 +165,7 @@ void loop() {
   nfc14443.reset();
   nfc14443.setupRF();
   if (nfc14443.isCardPresent()) {
-    uint8_t uidLength = nfc14443.readCardSerial(uid);
+    int8_t uidLength = nfc14443.readCardSerial(uid);
     if (uidLength > 0) {
       Serial.print(F("ISO-14443 card found, UID="));
       for (int i=0; i<uidLength; i++) {
