@@ -110,7 +110,7 @@ public:
   bool sendData(uint8_t *data, int len, uint8_t validBits = 0);
   /* cmd 0x0a */
   uint8_t * readData(int len);
-  bool readData(uint8_t len, uint8_t *buffer);
+  bool readData(int len, uint8_t *buffer);
   /* prepare LPCD registers */
   bool prepareLPCD();
   /* cmd 0x0B */

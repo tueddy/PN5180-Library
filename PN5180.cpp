@@ -352,7 +352,7 @@ uint8_t * PN5180::readData(int len) {
   return readBuffer;
 }
 
-bool PN5180::readData(uint8_t len, uint8_t *buffer) {
+bool PN5180::readData(int len, uint8_t *buffer) {
 	if (len > 508) {
 		return false;
 	}
