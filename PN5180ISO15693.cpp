@@ -70,6 +70,107 @@ ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
 }
 
 /*
+ * Inventory with flag set for 16 time slots, code=01
+ * https://www.nxp.com.cn/docs/en/application-note/AN12650.pdf
+ * Request format: SOF, Req.Flags, Inventory, AFI (opt.), Mask len, Mask value, CRC16, EOF
+ * Response format: SOF, Resp.Flags, DSFID, UID, CRC16, EOF
+ *
+ */
+ISO15693ErrorCode PN5180ISO15693::getInventoryMultiple(uint8_t *uid, uint8_t maxTags, uint8_t *numCard) {
+  ESP_LOGD(TAG,"getInventory: Get Inventory...");
+  uint8_t collision[maxTags];
+  *numCard = 0;
+  uint8_t numCol = 0;
+  inventoryPoll(uid, maxTags, numCard, &numCol, collision);
+  PN5180DEBUG("Number of collisions=");
+  PN5180DEBUG(numCol)
+  PN5180DEBUG("\n");
+
+  while(numCol){                                                 // 5+ Continue until no collisions detected
+#ifdef DEBUG
+    printf("inventoryPoll: Polling with mask=0x%X\n", collision[0]);
+#endif
+    inventoryPoll(uid, maxTags, numCard, &numCol, collision);
+    numCol--;
+    for(int i=0; i<numCol; i++){
+      collision[i] = collision[i+1];
+    }
+  }
+  return ISO15693_EC_OK;
+}
+
+ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, uint8_t *numCard, uint8_t *numCol, uint8_t *collision){
+  uint8_t maskLen = 0;
+  if(*numCol > 0){
+    uint32_t mask = collision[0];
+    do{
+      mask >>= 4L;
+      maskLen++;
+    }while(mask > 0);
+  } 
+  uint8_t *readBuffer;
+  uint8_t *p = &collision[0];
+  //                      Flags,  CMD,
+  uint8_t inventory[7] = { 0x06, 0x01, maskLen*4, p[0], p[1], p[2], p[3] };
+  //                         |\- inventory flag + high data rate
+  //                         \-- 16 slots: upto 16 cards, no AFI field present
+  uint8_t cmdLen = 3 + (maskLen/2) + (maskLen%2);
+#ifdef DEBUG
+  printf("mask=%d, maskLen=%d, cmdLen=%d\n", collision[0], maskLen, cmdLen);
+#endif
+  clearIRQStatus(0x000FFFFF);                                  // 3. Clear all IRQ_STATUS flags
+  sendData(inventory, cmdLen, 0);                              // 4. 5. 6. Idle/StopCom Command, Transceive Command, Inventory command
+  
+  for(int slot=0; slot<16; slot++){                                   // 7. Loop to check 16 time slots for data
+    uint32_t rxStatus;
+    uint32_t irqStatus = getIRQStatus();
+    readRegister(RX_STATUS, &rxStatus);
+    uint16_t len = (uint16_t)(rxStatus & 0x000001ff);
+    if((rxStatus >> 18) & 0x01 && *numCol < maxTags){                  // 7+ Determine if a collision occurred
+      if(maskLen > 0) collision[*numCol++] = collision[0] | (slot << (maskLen * 2));
+      else collision[*numCol++] = slot << (maskLen * 2);     // Yes, store position of collision
+#ifdef DEBUG
+      printf("Collision detected for UIDs matching %X starting at LSB", collision[*numCol-1]);
+#endif
+    }
+    else if(!(irqStatus & RX_IRQ_STAT) && !len){               // 8. Check if a card has responded
+      PN5180DEBUG("getInventoryMultiple: No card in this time slot. State=");
+      PN5180DEBUG(irqStatus);
+      PN5180DEBUG("\n");
+    }
+    else{
+#ifdef DEBUG
+      printf("slot=%d, irqStatus: %ld, RX_STATUS: %ld, Response length=%d", slot, irqStatus, rxStatus, len);
+#endif
+      readBuffer = readData(len);                              // 9. Read reception buffer
+      if(0L == readBuffer){
+        PN5180DEBUG("getInventoryMultiple: ERROR in readData!");
+        return ISO15693_EC_UNKNOWN_ERROR;
+      }
+
+      // Record raw UID data                                          // 10. Record all data to Inventory struct
+      for (int i=0; i<8; i++) {
+        uid[*numCard*8 + i] = readBuffer[2+i];
+      }
+
+#ifdef DEBUG
+      printf("getInventory: Response flags: 0x%X, Data Storage Format ID: 0x%X\n", readBuffer[0], readBuffer[1]);
+#endif
+      *numCard++;
+    }
+    
+    if(slot+1 < 16){ // If we have more cards to poll for...
+      writeRegisterWithAndMask(TX_CONFIG, 0xFFFFFB3F);      // 11. Next SEND_DATA will only include EOF
+      clearIRQStatus(0x000FFFFF);                                  // 14. Clear all IRQ_STATUS flags
+      sendData(inventory, 0, 0);                                   // 12. 13. 15. Idle/StopCom Command, Transceive Command, Send EOF
+    }
+  }
+  setRF_off();                                                     // 16. Switch off RF field
+  setupRF();                                                       // 1. 2. Load ISO15693 config, RF on
+  return ISO15693_EC_OK;
+}
+
+/*
  * Read single block, code=20
  *
  * Request format: SOF, Req.Flags, ReadSingleBlock, UID (opt.), BlockNumber, CRC16, EOF
