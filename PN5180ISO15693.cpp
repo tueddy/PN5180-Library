@@ -211,13 +211,100 @@ ISO15693ErrorCode PN5180ISO15693::writeSingleBlock(uint8_t *uid, uint8_t blockNo
 #endif
 
   uint8_t *resultPtr;
-  ISO15693ErrorCode rc = issueISO15693Command(writeCmd, writeCmdSize, &resultPtr);
+  ISO15693ErrorCode rc =  issueISO15693Command(writeCmd, writeCmdSize, &resultPtr);
   if (ISO15693_EC_OK != rc) {
     free(writeCmd);
     return rc;
   }
 
   free(writeCmd);
+  return ISO15693_EC_OK;
+}
+
+/*
+ * Read multiple block, code=23
+ *
+ * Request format: SOF, Req.Flags, ReadMultipleBlock, UID (opt.), FirstBlockNumber, numBlocks, CRC16, EOF
+ * Response format:
+ *  when ERROR flag is set:
+ *    SOF, Resp.Flags, ErrorCode, CRC16, EOF
+ *
+ *     Response Flags:
+  *    xxxx.3xx0
+  *         |||\_ Error flag: 0=no error, 1=error detected, see error field
+  *         \____ Extension flag: 0=no extension, 1=protocol format is extended
+  *
+  *  If Error flag is set, the following error codes are defined:
+  *    01 = The command is not supported, i.e. the request code is not recognized.
+  *    02 = The command is not recognized, i.e. a format error occurred.
+  *    03 = The option is not supported.
+  *    0F = Unknown error.
+  *    10 = The specific block is not available.
+  *    11 = The specific block is already locked and cannot be locked again.
+  *    12 = The specific block is locked and cannot be changed.
+  *    13 = The specific block was not successfully programmed.
+  *    14 = The specific block was not successfully locked.
+  *    A0-DF = Custom command error codes
+ *
+ *  when ERROR flag is NOT set:
+ *    SOF, Flags, BlockData (len=blockSize * numBlock), CRC16, EOF
+ */
+ISO15693ErrorCode PN5180ISO15693::readMultipleBlock(uint8_t *uid, uint8_t blockNo, uint8_t numBlock, uint8_t *blockData, uint8_t blockSize) {
+  if(blockNo > numBlock-1){ // Attempted to start at a block greater than the num blocks on the VICC
+    PN5180DEBUG("Starting block exceeds length of data");
+    return ISO15693_EC_BLOCK_NOT_AVAILABLE;
+  }
+  if( (blockNo + numBlock) > numBlock ){ // Will attempt to read a block greater than the num blocks on the VICC 
+    PN5180DEBUG("End of block exceeds length of data");
+    return ISO15693_EC_BLOCK_NOT_AVAILABLE;
+  }
+  
+  //                              flags, cmd, uid,             1stBlock blocksToRead  
+  uint8_t readMultipleCmd[12] = { 0x22, 0x23, 1,2,3,4,5,6,7,8, blockNo, numBlock-1 }; // UID has LSB first!
+  //                                |\- high data rate
+  //                                \-- no options, addressed by UID
+  
+  for (int i=0; i<8; i++) {
+    readMultipleCmd[2+i] = uid[i];
+  }
+
+  PN5180DEBUG("readMultipleBlock: Read Block #");
+  PN5180DEBUG(blockNo);
+  PN5180DEBUG("-");
+  PN5180DEBUG(blockNo+numBlock-1);
+  PN5180DEBUG(", blockSize=");
+  PN5180DEBUG(blockSize);
+  PN5180DEBUG(", Cmd: ");
+  for (int i=0; i<sizeof(readMultipleCmd); i++) {
+    PN5180DEBUG(" ");
+    PN5180DEBUG(formatHex(readMultipleCmd[i]));
+  }
+
+  uint8_t *resultPtr;
+  ISO15693ErrorCode rc = issueISO15693Command(readMultipleCmd, sizeof(readMultipleCmd), &resultPtr);
+  if (ISO15693_EC_OK != rc) return rc;
+
+  PN5180DEBUG("readMultipleBlock: Value=");
+  for (int i=0; i<numBlock * blockSize; i++) {
+    blockData[i] = resultPtr[1+i];
+#ifdef DEBUG    
+    PN5180DEBUG(formatHex(blockData[i]));
+    PN5180DEBUG(" ");
+#endif 
+  }
+
+#ifdef DEBUG
+  PN5180DEBUG(" ");
+  for (int i=0; i<blockSize; i++) {
+    char c = blockData[i];
+    if (isPrintable(c)) {
+      PN5180DEBUG(c);
+    }
+    else PN5180DEBUG(".");
+  }
+  PN5180DEBUG("\n");
+#endif
+
   return ISO15693_EC_OK;
 }
 
@@ -305,8 +392,9 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 
   uint8_t infoFlags = readBuffer[1];
   if (infoFlags & 0x01) { // DSFID flag
+    uint8_t dsfid = *p++;
     PN5180DEBUG("DSFID=");  // Data storage format identifier
-    PN5180DEBUG(formatHex(uint8_t(*p++)));
+    PN5180DEBUG(formatHex(dsfid));
     PN5180DEBUG("\n");
   }
 #ifdef DEBUG
@@ -361,8 +449,9 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 #endif
    
   if (infoFlags & 0x08) { // IC reference
+    uint8_t iRef = *p++;
     PN5180DEBUG("IC Ref=");
-    PN5180DEBUG(formatHex(uint8_t(*p++)));
+    PN5180DEBUG(formatHex(iRef));
     PN5180DEBUG("\n");
   }
 #ifdef DEBUG
@@ -520,14 +609,17 @@ ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(uint8_t *cmd, uint8_t cmd
 
   uint32_t irqR = getIRQStatus();
   if (0 == (irqR & RX_SOF_DET_IRQ_STAT)) {
-	return EC_NO_CARD;
+    PN5180DEBUG("Didnt detect RX_SOF_DET_IRQ_STAT after sendData");
+	  return EC_NO_CARD;
   }
   
   unsigned long startedWaiting = millis();
   while(!(irqR & RX_IRQ_STAT)) {
-	if (millis() - startedWaiting > commandTimeout) {
-		return EC_NO_CARD;
-	}
+    irqR = getIRQStatus();
+    if (millis() - startedWaiting > commandTimeout) {
+      PN5180DEBUG("Didnt detect RX_IRQ_STAT after sendData");
+      return EC_NO_CARD;
+    }
   }
   
   uint32_t rxStatus;
@@ -559,8 +651,9 @@ ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(uint8_t *cmd, uint8_t cmd
 
   uint32_t irqStatus = getIRQStatus();
   if (0 == (RX_SOF_DET_IRQ_STAT & irqStatus)) { // no card detected
-     clearIRQStatus(TX_IRQ_STAT | IDLE_IRQ_STAT);
-     return EC_NO_CARD;
+    PN5180DEBUG("Didnt detect RX_SOF_DET_IRQ_STAT after readData");
+    clearIRQStatus(TX_IRQ_STAT | IDLE_IRQ_STAT);
+    return EC_NO_CARD;
   }
 
   uint8_t responseFlags = (*resultPtr)[0];
@@ -570,7 +663,7 @@ ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(uint8_t *cmd, uint8_t cmd
     PN5180DEBUG("ERROR code=");
     PN5180DEBUG(formatHex(errorCode));
     PN5180DEBUG(" - ");
-    PN5180DEBUG(strerror(errorCode));
+    PN5180DEBUG(strerror((ISO15693ErrorCode)errorCode));
     PN5180DEBUG("\n");
 
     if (errorCode >= 0xA0) { // custom command error codes
