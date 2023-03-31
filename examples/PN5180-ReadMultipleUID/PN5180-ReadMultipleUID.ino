@@ -208,7 +208,9 @@ void loop() {
       Serial.print(i);
       Serial.print("= ");
       for (int j=0; j<8; j++) {
-        Serial.print(uid[(i*8)+(7-j)], HEX); // LSB is first
+        uint8_t startAddr = (i*8) + 7 - j;
+        if(uid[startAddr] < 16) Serial.print("0");
+        Serial.print(uid[startAddr], HEX); // LSB is first
         if (j < 2) Serial.print(":");
       }
       Serial.println();
