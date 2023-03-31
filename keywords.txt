@@ -27,8 +27,11 @@ transceiveCommand	KEYWORD2
 
 issueISO15693Command		KEYWORD2
 getInventory		KEYWORD2
+getInventoryMultiple		KEYWORD2
+getInventoryPoll		KEYWORD2
 readSingleBlock		KEYWORD2
 writeSingleBlock		KEYWORD2
+readMultipleBlock		KEYWORD2
 getSystemInfo		KEYWORD2
 setupRF		KEYWORD2
 
