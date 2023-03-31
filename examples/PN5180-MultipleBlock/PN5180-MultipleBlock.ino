@@ -1,8 +1,9 @@
-// NAME: readMultipleUID.ino
+// NAME: PN5180-MultipleBlock.ino
 //
-// DESC: Example usage of the full ISO15693 Inventory
-//       feature for the PN5180-NFC Module from NXP 
-//       Semiconductors.
+// DESC: Example usage of the PN5180 Library for the PN5180-NFC Module
+//       from NXP Semiconductors. This example is similar to the 
+//       PN5180-Library example, but executes a single command (0x23)
+//       to read all block data from an ISO15693 card.
 //
 // Copyright (c) 2018 by Andreas Trappmann. All rights reserved.
 // Copyright (c) 2023 by Adam Billingsley. All rights reserved.
@@ -148,7 +149,6 @@ void setup() {
   nfc.readEEprom(IRQ_PIN_CONFIG, &irqConfig, 1));
   Serial.print(F("IRQ_PIN_CONFIG=0x"));
   Serial.println(irqConfig, HEX);
-
   Serial.println(F("----------------------------------"));
   Serial.println(F("Reading IRQ_ENABLE register..."));
   uint32_t irqEnable;
@@ -163,8 +163,6 @@ void setup() {
 }
 
 uint32_t loopCnt = 0;
-uint8_t numCard = 1;
-const uint8_t maxTags = 16;
 bool errorFlag = false;
 
 //SLIX2 Passwords, first is manufacture standard
@@ -187,38 +185,129 @@ void loop() {
     errorFlag = false;
   }
 
-  // Multiple inventory
   Serial.println(F("----------------------------------"));
   Serial.print(F("Loop #"));
   Serial.println(loopCnt++);
-  uint8_t uid[8*maxTags];
-  ISO15693ErrorCode rc = nfc.getInventoryMultiple(uid, maxTags, &numCard);
+
+/*
+  // code for unlocking an ICODE SLIX2 protected tag   
+  ISO15693ErrorCode myrc = nfc.unlockICODESLIX2(password);
+  if (ISO15693_EC_OK == myrc) {
+    Serial.println("unlockICODESLIX2 successful");
+  }
+*/
+  
+/* 
+  // code for set a new SLIX2 privacy password
+  nfc.getInventory(uid);
+  Serial.println("set new password"); 
+  
+  ISO15693ErrorCode myrc2 = nfc.newpasswordICODESLIX2(password, standardpassword, uid);
+  if (ISO15693_EC_OK == myrc2) { 
+   Serial.println("sucess! new password set");    
+  }else{
+   Serial.println("fail! no new password set: "); 
+   Serial.println(nfc.strerror(myrc2));  
+   Serial.println(" "); 
+  } 
+ */
+  
+  uint8_t uid[8];
+  ISO15693ErrorCode rc = nfc.getInventory(uid);
   if (ISO15693_EC_OK != rc) {
     Serial.print(F("Error in getInventory: "));
     Serial.println(nfc.strerror(rc));
     errorFlag = true;
+    return;
   }
-  else if(!numCard){
-    Serial.println("No cards detected.");
+  Serial.print(F("Inventory successful, UID="));
+  for (int i=0; i<8; i++) {
+    Serial.print(uid[7-i], HEX); // LSB is first
+    if (i < 2) Serial.print(":");
   }
-  else{
-    Serial.print("Inventory successful. Discovered ");
-    Serial.print(numCard);
-    Serial.println(" cards.");
-    for(int i=0; i<numCard; i++){
-      Serial.print("UID #");
-      Serial.print(i);
-      Serial.print("= ");
-      for (int j=0; j<8; j++) {
-        uint8_t startAddr = (i*8) + 7 - j;
-        if(uid[startAddr] < 16) Serial.print("0");
-        Serial.print(uid[startAddr], HEX); // LSB is first
-        if (j < 2) Serial.print(":");
+  Serial.println();
+
+  Serial.println(F("----------------------------------"));
+  uint8_t blockSize, numBlocks;
+  rc = nfc.getSystemInfo(uid, &blockSize, &numBlocks);
+  if (ISO15693_EC_OK != rc) {
+    Serial.print(F("Error in getSystemInfo: "));
+    Serial.println(nfc.strerror(rc));
+    errorFlag = true;
+    return;
+  }
+  Serial.print(F("System Info retrieved: blockSize="));
+  Serial.print(blockSize);
+  Serial.print(F(", numBlocks="));
+  Serial.println(numBlocks);
+
+  Serial.println(F("----------------------------------"));
+  uint8_t readBuffer[numBlocks*blockSize];
+  
+  rc = nfc.readMultipleBlock(uid, 0, numBlocks, readBuffer, blockSize);
+  if (ISO15693_EC_OK != rc) {
+    Serial.print(F("Error in readMultipleBlock #"));
+    Serial.print("0-");
+    Serial.print(numBlocks-1);
+    Serial.print(": ");
+    Serial.println(nfc.strerror(rc));
+    errorFlag = true;
+    return;
+  }
+  Serial.print(F("Read blocks #0-"));
+  Serial.print(numBlocks-1);
+  Serial.println(":");
+  for(int i=0; i<numBlocks; i++){
+    if(i < 10) Serial.print(" ");
+    Serial.print("#");
+    Serial.print(i);
+    Serial.print(": ");
+    uint16_t startAddr = i * blockSize;
+    for (int j=0; j<blockSize; j++) {
+      if (readBuffer[startAddr + j] < 16) Serial.print("0");
+      Serial.print(readBuffer[startAddr + j], HEX);
+      Serial.print(" ");
+    }
+    Serial.print(" ");
+    for (int j=0; j<blockSize; j++) {
+      if (isprint(readBuffer[startAddr + j])) {
+        Serial.print((char)readBuffer[startAddr + j]);
       }
-      Serial.println();
+      else Serial.print(".");
+    }
+    Serial.println();
+  }
+
+#ifdef WRITE_ENABLED
+  Serial.println(F("----------------------------------"));
+  uint8_t *writeBuffer = malloc(blockSize);
+  for (int i=0; i<blockSize; i++) {
+    writeBuffer[i] = 0x80 + i;
+  }
+  for (int no=0; no<numBlocks; no++) {
+    rc = nfc.writeSingleBlock(uid, no, writeBuffer, blockSize);
+    if (ISO15693_EC_OK == rc) {
+      Serial.print(F("Wrote block #"));
+      Serial.println(no);
+    }
+    else {
+      Serial.print(F("Error in writeSingleBlock #"));
+      Serial.print(no);
+      Serial.print(": ");
+      Serial.println(nfc.strerror(rc));
+      errorFlag = true;
+      return;
     }
   }
-  Serial.println(F("----------------------------------"));
+#endif /* WRITE_ENABLED */
+
+/*
+  // code for locking an ICODE SLIX2 protected tag   
+  ISO15693ErrorCode myrc = nfc.lockICODESLIX2(password);
+  if (ISO15693_EC_OK == myrc) {
+    Serial.println("lockICODESLIX2 successful");
+    delay(5000);
+*/
   delay(1000);
 }
 
