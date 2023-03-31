@@ -19,7 +19,7 @@
 #include <inttypes.h>
 #include "Debug.h"
 
-#ifdef DEBUG
+//#ifdef DEBUG
 
 static const char hexChar[] = "0123456789ABCDEF";
 static char hexBuffer[9];
@@ -49,4 +49,4 @@ char * formatHex(uint32_t val) {
   return hexBuffer;
 }
 
-#endif
+//#endif

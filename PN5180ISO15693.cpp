@@ -325,7 +325,7 @@ ISO15693ErrorCode PN5180ISO15693::writeSingleBlock(uint8_t *uid, uint8_t blockNo
 #endif
 
   uint8_t *resultPtr;
-  ISO15693ErrorCode rc = issueISO15693Command(writeCmd, writeCmdSize, &resultPtr);
+  ISO15693ErrorCode rc =  issueISO15693Command(writeCmd, writeCmdSize, &resultPtr);
   if (ISO15693_EC_OK != rc) {
     free(writeCmd);
     return rc;

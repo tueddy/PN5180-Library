@@ -149,6 +149,7 @@ void setup() {
   nfc.readEEprom(IRQ_PIN_CONFIG, &irqConfig, 1));
   Serial.print(F("IRQ_PIN_CONFIG=0x"));
   Serial.println(irqConfig, HEX);
+
   Serial.println(F("----------------------------------"));
   Serial.println(F("Reading IRQ_ENABLE register..."));
   uint32_t irqEnable;
