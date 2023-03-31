@@ -1,9 +1,11 @@
-// NAME: PN5180-Library.ino
+// NAME: readMultipleUID.ino
 //
-// DESC: Example usage of the PN5180 library for the PN5180-NFC Module
-//       from NXP Semiconductors.
+// DESC: Example usage of the full ISO15693 Inventory
+//       feature for the PN5180-NFC Module from NXP 
+//       Semiconductors.
 //
 // Copyright (c) 2018 by Andreas Trappmann. All rights reserved.
+// Copyright (c) 2023 by Adam Billingsley. All rights reserved.
 //
 // This file is part of the PN5180 library for the Arduino environment.
 //

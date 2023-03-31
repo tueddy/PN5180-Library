@@ -6,7 +6,7 @@
 //       to read all block data from an ISO15693 card.
 //
 // Copyright (c) 2018 by Andreas Trappmann. All rights reserved.
-// Copyright (c) 2023 by Adam Billingsley.
+// Copyright (c) 2023 by Adam Billingsley. All rights reserved.
 //
 // This file is part of the PN5180 library for the Arduino environment.
 //
