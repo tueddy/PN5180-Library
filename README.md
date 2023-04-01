@@ -7,6 +7,12 @@ Arduino Uno / Arduino ESP-32 library for PN5180-NFC Module from NXP Semiconducto
 
 Release Notes:
 
+Version 2.1 - 01.04.2023
+
+	* readMultipleBlock(), getInventoryMultiple() and getInventoryPoll() has been implemented, thanks to @laplacier !
+	* multiple ISO-15693 tags can be read at once, thanks to @laplacier ! 
+	* fixed some bugs and warnings with c++17
+	
 Version 2.0 - 17.10.2022
 
 	* allow to instantiate with custom SPI class, thanks to  @mwick83!
