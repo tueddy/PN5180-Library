@@ -110,7 +110,7 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
   } 
   uint8_t *p = (uint8_t*)&(collision[0]);
   //                      Flags,  CMD,
-  uint8_t inventory[7] = { 0x06, 0x01, maskLen*4, p[0], p[1], p[2], p[3] };
+  uint8_t inventory[7] = { 0x06, 0x01, uint8_t(maskLen*4), p[0], p[1], p[2], p[3] };
   //                         |\- inventory flag + high data rate
   //                         \-- 16 slots: upto 16 cards, no AFI field present
   uint8_t cmdLen = 3 + (maskLen/2) + (maskLen%2);
@@ -374,7 +374,7 @@ ISO15693ErrorCode PN5180ISO15693::readMultipleBlock(uint8_t *uid, uint8_t blockN
   }
   
   //                              flags, cmd, uid,             1stBlock blocksToRead  
-  uint8_t readMultipleCmd[12] = { 0x22, 0x23, 1,2,3,4,5,6,7,8, blockNo, numBlock-1 }; // UID has LSB first!
+  uint8_t readMultipleCmd[12] = { 0x22, 0x23, 1,2,3,4,5,6,7,8, blockNo, uint8_t(numBlock-1) }; // UID has LSB first!
   //                                |\- high data rate
   //                                \-- no options, addressed by UID
   
@@ -506,7 +506,9 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 
   uint8_t infoFlags = readBuffer[1];
   if (infoFlags & 0x01) { // DSFID flag
+#ifdef DEBUG
     uint8_t dsfid = *p++;
+#endif
     PN5180DEBUG("DSFID=");  // Data storage format identifier
     PN5180DEBUG(formatHex(dsfid));
     PN5180DEBUG("\n");
@@ -563,7 +565,9 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 #endif
    
   if (infoFlags & 0x08) { // IC reference
+#ifdef DEBUG
     uint8_t iRef = *p++;
+#endif
     PN5180DEBUG("IC Ref=");
     PN5180DEBUG(formatHex(iRef));
     PN5180DEBUG("\n");
