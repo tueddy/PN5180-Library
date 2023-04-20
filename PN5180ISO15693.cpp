@@ -819,7 +819,7 @@ bool PN5180ISO15693::setupRF() {
   return true;
 }
 
-const __FlashStringHelper *PN5180ISO15693::strerror(ISO15693ErrorCode errno) {
+const char *PN5180ISO15693::strerror(ISO15693ErrorCode errno) {
   PN5180DEBUG(F("ISO15693ErrorCode="));
   PN5180DEBUG(errno);
   PN5180DEBUG("\n");

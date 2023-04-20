@@ -66,7 +66,7 @@ public:
    */
 public:   
   bool setupRF();
-  const __FlashStringHelper *strerror(ISO15693ErrorCode errno);
+  const char *strerror(ISO15693ErrorCode errno);
     
 };
 
