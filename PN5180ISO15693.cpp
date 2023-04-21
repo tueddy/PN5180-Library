@@ -820,26 +820,26 @@ bool PN5180ISO15693::setupRF() {
 }
 
 const char *PN5180ISO15693::strerror(ISO15693ErrorCode errno) {
-  PN5180DEBUG(F("ISO15693ErrorCode="));
+  PN5180DEBUG(("ISO15693ErrorCode="));
   PN5180DEBUG(errno);
   PN5180DEBUG("\n");
   
   switch (errno) {
-    case EC_NO_CARD: return F("No card detected!");
-    case ISO15693_EC_OK: return F("OK!");
-    case ISO15693_EC_NOT_SUPPORTED: return F("Command is not supported!");
-    case ISO15693_EC_NOT_RECOGNIZED: return F("Command is not recognized!");
-    case ISO15693_EC_OPTION_NOT_SUPPORTED: return F("Option is not supported!");
-    case ISO15693_EC_UNKNOWN_ERROR: return F("Unknown error!");
-    case ISO15693_EC_BLOCK_NOT_AVAILABLE: return F("Specified block is not available!");
-    case ISO15693_EC_BLOCK_ALREADY_LOCKED: return F("Specified block is already locked!");
-    case ISO15693_EC_BLOCK_IS_LOCKED: return F("Specified block is locked and cannot be changed!");
-    case ISO15693_EC_BLOCK_NOT_PROGRAMMED: return F("Specified block was not successfully programmed!");
-    case ISO15693_EC_BLOCK_NOT_LOCKED: return F("Specified block was not successfully locked!");
+    case EC_NO_CARD: return ("No card detected!");
+    case ISO15693_EC_OK: return ("OK!");
+    case ISO15693_EC_NOT_SUPPORTED: return ("Command is not supported!");
+    case ISO15693_EC_NOT_RECOGNIZED: return ("Command is not recognized!");
+    case ISO15693_EC_OPTION_NOT_SUPPORTED: return ("Option is not supported!");
+    case ISO15693_EC_UNKNOWN_ERROR: return ("Unknown error!");
+    case ISO15693_EC_BLOCK_NOT_AVAILABLE: return ("Specified block is not available!");
+    case ISO15693_EC_BLOCK_ALREADY_LOCKED: return ("Specified block is already locked!");
+    case ISO15693_EC_BLOCK_IS_LOCKED: return ("Specified block is locked and cannot be changed!");
+    case ISO15693_EC_BLOCK_NOT_PROGRAMMED: return ("Specified block was not successfully programmed!");
+    case ISO15693_EC_BLOCK_NOT_LOCKED: return ("Specified block was not successfully locked!");
     default:
       if ((errno >= 0xA0) && (errno <= 0xDF)) {
-        return F("Custom command error code!");
+        return ("Custom command error code!");
       }
-      else return F("Undefined error code in ISO15693!");
+      else return ("Undefined error code in ISO15693!");
   }
 }
