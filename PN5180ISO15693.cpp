@@ -77,7 +77,7 @@ ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
  *
  */
 ISO15693ErrorCode PN5180ISO15693::getInventoryMultiple(uint8_t *uid, uint8_t maxTags, uint8_t *numCard) {
-  ESP_LOGD(TAG,"getInventory: Get Inventory...");
+  PN5180DEBUG("PN5180ISO15693: Get Inventory...");
   uint16_t collision[maxTags];
   *numCard = 0;
   uint8_t numCol = 0;
