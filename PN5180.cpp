@@ -28,7 +28,7 @@
 #define PN5180_WRITE_REGISTER_OR_MASK   (0x01)
 #define PN5180_WRITE_REGISTER_AND_MASK  (0x02)
 #define PN5180_READ_REGISTER            (0x04)
-#define PN5180_WRITE_EEPROM				      (0x06)
+#define PN5180_WRITE_EEPROM             (0x06)
 #define PN5180_READ_EEPROM              (0x07)
 #define PN5180_SEND_DATA                (0x09)
 #define PN5180_READ_DATA                (0x0A)
