@@ -28,11 +28,12 @@
 #define PN5180_WRITE_REGISTER_OR_MASK   (0x01)
 #define PN5180_WRITE_REGISTER_AND_MASK  (0x02)
 #define PN5180_READ_REGISTER            (0x04)
-#define PN5180_WRITE_EEPROM				(0x06)
+#define PN5180_WRITE_EEPROM				      (0x06)
 #define PN5180_READ_EEPROM              (0x07)
 #define PN5180_SEND_DATA                (0x09)
 #define PN5180_READ_DATA                (0x0A)
 #define PN5180_SWITCH_MODE              (0x0B)
+#define PN5180_MIFARE_AUTHENTICATE      (0x0C)
 #define PN5180_LOAD_RF_CONFIG           (0x11)
 #define PN5180_RF_ON                    (0x16)
 #define PN5180_RF_OFF                   (0x17)
@@ -435,6 +436,43 @@ bool PN5180::switchToLPCD(uint16_t wakeupCounterInMs) {
   bool success = transceiveCommand(cmd, sizeof(cmd));
   PN5180_SPI.endTransaction();
   return success;
+}
+
+/*
+ * MIFARE_AUTHENTICATE - 0x0C
+ * This command is used to perform a MIFARE Classic Authentication on an activated card.
+ * It takes the key, card UID and the key type to authenticate at a given block address. The
+ * response contains 1 byte indicating the authentication status.
+*/
+int16_t PN5180::mifareAuthenticate(uint8_t blockNo, uint8_t *key, uint8_t keyType, uint8_t *uid) {
+	if (keyType != 0x60 && keyType != 0x61){
+		PN5180DEBUG(F("*** ERROR: invalid key type supplied!\n"));
+		return -2;
+	}
+
+	uint8_t cmdBuffer[13];
+	uint8_t rcvBuffer[1] = {0x02};
+	cmdBuffer[0] = PN5180_MIFARE_AUTHENTICATE;  // PN5180 MF Authenticate command
+	for (int i=0;i<6;i++){
+		cmdBuffer[i+1] = key[i];
+	}
+	cmdBuffer[7] = keyType;
+	cmdBuffer[8] = blockNo;
+	for (int i=0;i<4;i++){
+		cmdBuffer[9+i] = uid[i];
+	}
+
+  PN5180_SPI.beginTransaction(SPI_SETTINGS);
+  bool retval = transceiveCommand(cmdBuffer, 13, rcvBuffer, 1);
+  PN5180_SPI.endTransaction();
+
+	if (!retval){
+		PN5180DEBUG(F("*** ERROR: sending command failed!\n"));
+		return -3;
+	}
+	
+	return rcvBuffer[0];
+
 }
 
 /*

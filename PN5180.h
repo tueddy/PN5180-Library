@@ -71,6 +71,9 @@ enum PN5180TransceiveStat {
 #define GENERAL_ERROR_IRQ_STAT 	(1<<17) // General error IRQ
 #define LPCD_IRQ_STAT 			(1<<19) // LPCD Detection IRQ
 
+#define MIFARE_CLASSIC_KEYA 0x60  // Mifare Classic key A
+#define MIFARE_CLASSIC_KEYB 0x61  // Mifare Classic key B
+
 class PN5180 {
 private:
   uint8_t PN5180_NSS;   // active low
@@ -115,6 +118,8 @@ public:
   bool prepareLPCD();
   /* cmd 0x0B */
   bool switchToLPCD(uint16_t wakeupCounterInMs);
+  /* cmd 0x0C */
+  int16_t mifareAuthenticate(uint8_t blockno, uint8_t *key, uint8_t keyType, uint8_t *uid);
   /* cmd 0x11 */
   bool loadRFConfig(uint8_t txConf, uint8_t rxConf);
 
@@ -122,6 +127,8 @@ public:
   bool setRF_on();
   /* cmd 0x17 */
   bool setRF_off();
+
+  bool sendCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_t *recvBuffer, size_t recvBufferLen);
 
   /*
    * Helper functions
