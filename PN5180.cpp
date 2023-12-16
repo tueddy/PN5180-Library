@@ -200,14 +200,14 @@ bool PN5180::readRegister(uint8_t reg, uint32_t *value) {
  * WRITE_EEPROM - 0x06
  */
 bool PN5180::writeEEprom(uint8_t addr, uint8_t *buffer, uint8_t len) {
-	uint8_t cmd[len + 2];
-	cmd[0] = PN5180_WRITE_EEPROM;
-	cmd[1] = addr;
-	for (int i = 0; i < len; i++) cmd[2 + i] = buffer[i];
-	PN5180_SPI.beginTransaction(SPI_SETTINGS);
-	transceiveCommand(cmd, len + 2);
-	PN5180_SPI.endTransaction();
-	return true;
+  uint8_t cmd[len + 2];
+  cmd[0] = PN5180_WRITE_EEPROM;
+  cmd[1] = addr;
+  for (int i = 0; i < len; i++) cmd[2 + i] = buffer[i];
+  PN5180_SPI.beginTransaction(SPI_SETTINGS);
+  transceiveCommand(cmd, len + 2);
+  PN5180_SPI.endTransaction();
+  return true;
 }
 
 /*
@@ -354,14 +354,14 @@ uint8_t * PN5180::readData(int len) {
 }
 
 bool PN5180::readData(int len, uint8_t *buffer) {
-	if (len > 508) {
-		return false;
-	}
-	uint8_t cmd[2] = { PN5180_READ_DATA, 0x00 };
-	PN5180_SPI.beginTransaction(SPI_SETTINGS);
-	bool success = transceiveCommand(cmd, 2, buffer, len);
-	PN5180_SPI.endTransaction();
-	return success;
+  if (len > 508) {
+    return false;
+  }
+  uint8_t cmd[2] = { PN5180_READ_DATA, 0x00 };
+  PN5180_SPI.beginTransaction(SPI_SETTINGS);
+  bool success = transceiveCommand(cmd, 2, buffer, len);
+  PN5180_SPI.endTransaction();
+  return success;
 }
 
 /* prepare LPCD registers */
@@ -445,33 +445,33 @@ bool PN5180::switchToLPCD(uint16_t wakeupCounterInMs) {
  * response contains 1 byte indicating the authentication status.
 */
 int16_t PN5180::mifareAuthenticate(uint8_t blockNo, uint8_t *key, uint8_t keyType, uint8_t *uid) {
-	if (keyType != 0x60 && keyType != 0x61){
-		PN5180DEBUG(F("*** ERROR: invalid key type supplied!\n"));
-		return -2;
-	}
+  if (keyType != 0x60 && keyType != 0x61){
+    PN5180DEBUG(F("*** ERROR: invalid key type supplied!\n"));
+    return -2;
+  }
 
-	uint8_t cmdBuffer[13];
-	uint8_t rcvBuffer[1] = {0x02};
-	cmdBuffer[0] = PN5180_MIFARE_AUTHENTICATE;  // PN5180 MF Authenticate command
-	for (int i=0;i<6;i++){
-		cmdBuffer[i+1] = key[i];
-	}
-	cmdBuffer[7] = keyType;
-	cmdBuffer[8] = blockNo;
-	for (int i=0;i<4;i++){
-		cmdBuffer[9+i] = uid[i];
-	}
+  uint8_t cmdBuffer[13];
+  uint8_t rcvBuffer[1] = {0x02};
+  cmdBuffer[0] = PN5180_MIFARE_AUTHENTICATE;  // PN5180 MF Authenticate command
+  for (int i=0;i<6;i++){
+    cmdBuffer[i+1] = key[i];
+  }
+  cmdBuffer[7] = keyType;
+  cmdBuffer[8] = blockNo;
+  for (int i=0;i<4;i++){
+    cmdBuffer[9+i] = uid[i];
+  }
 
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
   bool retval = transceiveCommand(cmdBuffer, 13, rcvBuffer, 1);
   PN5180_SPI.endTransaction();
 
-	if (!retval){
-		PN5180DEBUG(F("*** ERROR: sending command failed!\n"));
-		return -3;
-	}
-	
-	return rcvBuffer[0];
+  if (!retval){
+    PN5180DEBUG(F("*** ERROR: sending command failed!\n"));
+    return -3;
+  }
+  
+  return rcvBuffer[0];
 
 }
 
@@ -526,9 +526,9 @@ bool PN5180::setRF_on() {
   unsigned long startedWaiting = millis();
   while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
     if (millis() - startedWaiting > 500) {
-	  PN5180DEBUG(F("Set RF ON timeout\n"));
-	  return false; 
-	}
+    PN5180DEBUG(F("Set RF ON timeout\n"));
+    return false; 
+  }
   }; 
   
   clearIRQStatus(TX_RFON_IRQ_STAT);
@@ -552,9 +552,9 @@ bool PN5180::setRF_off() {
   unsigned long startedWaiting = millis();
   while (0 == (TX_RFOFF_IRQ_STAT & getIRQStatus())) {   // wait for RF field to shut down
     if (millis() - startedWaiting > 500) {
-	  PN5180DEBUG(F("Set RF OFF timeout\n"));
-	  return false; 
-	}
+    PN5180DEBUG(F("Set RF OFF timeout\n"));
+    return false; 
+  }
   }; 
   clearIRQStatus(TX_RFOFF_IRQ_STAT);
   return true;
@@ -612,9 +612,9 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   unsigned long startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG("transceiveCommand timeout (send/0)");
-		return false;
-	};
+    PN5180DEBUG("transceiveCommand timeout (send/0)");
+    return false;
+  };
   }; // wait until busy is low
   // 1.
   digitalWrite(PN5180_NSS, LOW); delay(1);
@@ -624,9 +624,9 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (HIGH != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG("transceiveCommand timeout (send/3)");
-		return false;
-	}
+    PN5180DEBUG("transceiveCommand timeout (send/3)");
+    return false;
+  }
   }; // wait until busy is high
   // 4.
   digitalWrite(PN5180_NSS, HIGH); delay(1);
@@ -634,9 +634,9 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG("transceiveCommand timeout (send/5)");
-		return false;
-	};
+    PN5180DEBUG("transceiveCommand timeout (send/5)");
+    return false;
+  };
   }; // wait until busy is low
 
   // check, if write-only
@@ -652,9 +652,9 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis(); //delay(1);
   while (HIGH != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG("transceiveCommand timeout (receive/3)");
-		return false;
-	};
+    PN5180DEBUG("transceiveCommand timeout (receive/3)");
+    return false;
+  };
   }; // wait until busy is high
   // 4.
   digitalWrite(PN5180_NSS, HIGH); 
@@ -662,9 +662,9 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG("transceiveCommand timeout (receive/5)");
-		return false;
-	};
+    PN5180DEBUG("transceiveCommand timeout (receive/5)");
+    return false;
+  };
   }; // wait until busy is low
 
 #ifdef DEBUG
@@ -690,16 +690,16 @@ void PN5180::reset() {
 
   unsigned long startedWaiting = millis();
   while (0 == (IDLE_IRQ_STAT & getIRQStatus())) {
-	// wait for system to start up (with timeout)
+  // wait for system to start up (with timeout)
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG(F("reset failed (timeout)!!!\n"));
-		// try again with larger time
-		digitalWrite(PN5180_RST, LOW);  
-		delay(10);
-		digitalWrite(PN5180_RST, HIGH); 
-		delay(50);
-		return;
-	}
+    PN5180DEBUG(F("reset failed (timeout)!!!\n"));
+    // try again with larger time
+    digitalWrite(PN5180_RST, LOW);  
+    delay(10);
+    digitalWrite(PN5180_RST, HIGH); 
+    delay(50);
+    return;
+  }
   }
 }
 
