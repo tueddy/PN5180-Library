@@ -611,8 +611,7 @@ ISO15693ErrorCode PN5180ISO15693::setPassword(uint8_t identifier, uint8_t *passw
   setPassword[5] = password[1] ^ random[1];
   setPassword[6] = password[2] ^ random[0];
   setPassword[7] = password[3] ^ random[1];
-  ISO15693ErrorCode rc = issueISO15693Command(setPassword, sizeof(setPassword), &readBuffer);
-  return rc;
+  return issueISO15693Command(setPassword, sizeof(setPassword), &readBuffer);
 }
 
 /*
@@ -627,8 +626,7 @@ ISO15693ErrorCode PN5180ISO15693::enablePrivacy(uint8_t *password, uint8_t *rand
   setPrivacy[4] = password[1] ^ random[1];
   setPrivacy[5] = password[2] ^ random[0];
   setPrivacy[6] = password[3] ^ random[1];
-  ISO15693ErrorCode rc = issueISO15693Command(setPrivacy, sizeof(setPrivacy), &readBuffer);
-  return rc;
+  return issueISO15693Command(setPrivacy, sizeof(setPrivacy), &readBuffer);
 }
 
 
