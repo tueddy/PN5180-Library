@@ -38,7 +38,7 @@
 #define PN5180_RF_ON                    (0x16)
 #define PN5180_RF_OFF                   (0x17)
 
-uint8_t PN5180::readBuffer[508];
+uint8_t PN5180::readBufferStatic16[16];
 
 PN5180::PN5180(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, SPIClass& spi) :
   PN5180_NSS(SSpin),
@@ -56,6 +56,11 @@ PN5180::PN5180(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, SPIClass& spi) :
   SPI_SETTINGS = SPISettings(7000000, MSBFIRST, SPI_MODE0);
 }
 
+PN5180::~PN5180() {
+  if (readBufferDynamic508) {
+    free(readBufferDynamic508);
+  }
+}
 
 void PN5180::begin() {
   pinMode(PN5180_NSS, OUTPUT);
@@ -337,6 +342,21 @@ uint8_t * PN5180::readData(int len) {
 
   uint8_t cmd[] = { PN5180_READ_DATA, 0x00 };
 
+  uint8_t *readBuffer;
+  if (len <=16) {
+    // use a smaller static buffer, e.g. if reading the uid only
+    readBuffer = readBufferStatic16;
+  } else {
+    // allocate the max buffer length of 508 bytes
+    if (!readBufferDynamic508) {
+       readBufferDynamic508 = (uint8_t *) malloc(508);
+       if (!readBufferDynamic508) {
+        PN5180DEBUG(F("Cannot allocate the read buffer of 508 Bytes!"));
+        return NULL;
+       }
+    }
+    readBuffer = readBufferDynamic508;
+  }
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
   transceiveCommand(cmd, sizeof(cmd), readBuffer, len);
   PN5180_SPI.endTransaction();

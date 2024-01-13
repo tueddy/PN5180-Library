@@ -82,10 +82,11 @@ private:
   SPIClass& PN5180_SPI;
 
   SPISettings SPI_SETTINGS;
-  static uint8_t readBuffer[508];
-
+  static uint8_t readBufferStatic16[16];
+  uint8_t* readBufferDynamic508 = NULL;
 public:
   PN5180(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, SPIClass& spi=SPI);
+  ~PN5180();
 
   void begin();
   void end();
