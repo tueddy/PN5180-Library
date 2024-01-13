@@ -7,6 +7,13 @@ Arduino Uno / Arduino ESP-32 library for PN5180-NFC Module from NXP Semiconducto
 
 Release Notes:
 
+Version 2.2 - 13.01.2024
+
+	* Add code to allow authentication with Mifare Classic cards, thanks to @golyalpha !
+	* Unify and simplify command creation
+	* Smaller memory footprint if reading UID only (save ~500 Bytes)
+	* Refactor SPI transaction into transceiveCommand()
+
 Version 2.1 - 01.04.2023
 
 	* readMultipleBlock(), getInventoryMultiple() and getInventoryPoll() has been implemented, thanks to @laplacier !
