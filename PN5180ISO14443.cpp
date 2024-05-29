@@ -269,7 +269,7 @@ bool PN5180ISO14443::mifareBlockRead(uint8_t blockno, uint8_t *buffer) {
 }
 
 
-uint8_t PN5180ISO14443::mifareBlockWrite16(uint8_t blockno, uint8_t *buffer) {
+uint8_t PN5180ISO14443::mifareBlockWrite16(uint8_t blockno, const uint8_t *buffer) {
 	uint8_t cmd[2];
 	// Clear RX CRC
 	writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE);

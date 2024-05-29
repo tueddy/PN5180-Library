@@ -106,12 +106,12 @@ public:
   bool readRegister(uint8_t reg, uint32_t *value);
 
   /* cmd 0x06 */
-  bool writeEEprom(uint8_t addr, uint8_t *buffer, uint8_t len);
+  bool writeEEprom(uint8_t addr, const uint8_t *buffer, uint8_t len);
   /* cmd 0x07 */
   bool readEEprom(uint8_t addr, uint8_t *buffer, int len);
 
   /* cmd 0x09 */
-  bool sendData(uint8_t *data, int len, uint8_t validBits = 0);
+  bool sendData(const uint8_t *data, int len, uint8_t validBits = 0);
   /* cmd 0x0a */
   uint8_t * readData(int len);
   bool readData(int len, uint8_t *buffer);
@@ -120,7 +120,7 @@ public:
   /* cmd 0x0B */
   bool switchToLPCD(uint16_t wakeupCounterInMs);
   /* cmd 0x0C */
-  int16_t mifareAuthenticate(uint8_t blockno, uint8_t *key, uint8_t keyType, uint8_t *uid);
+  int16_t mifareAuthenticate(uint8_t blockno, const uint8_t *key, uint8_t keyType, const uint8_t *uid);
   /* cmd 0x11 */
   bool loadRFConfig(uint8_t txConf, uint8_t rxConf);
 

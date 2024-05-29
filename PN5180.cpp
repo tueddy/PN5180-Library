@@ -196,7 +196,7 @@ bool PN5180::readRegister(uint8_t reg, uint32_t *value) {
 /*
  * WRITE_EEPROM - 0x06
  */
-bool PN5180::writeEEprom(uint8_t addr, uint8_t *buffer, uint8_t len) {
+bool PN5180::writeEEprom(uint8_t addr, const uint8_t *buffer, uint8_t len) {
 	uint8_t cmd[len + 2];
 	cmd[0] = PN5180_WRITE_EEPROM;
 	cmd[1] = addr;
@@ -260,7 +260,7 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
  * called during an ongoing RF transmission. Transceiver must be in ‘WaitTransmit’ state
  * with ‘Transceive’ command set. If the condition is not fulfilled, an exception is raised.
  */
-bool PN5180::sendData(uint8_t *data, int len, uint8_t validBits) {
+bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
   if (len > 260) {
     PN5180DEBUG(F("ERROR: sendData with more than 260 bytes is not supported!\n"));
     return false;
@@ -440,7 +440,7 @@ bool PN5180::switchToLPCD(uint16_t wakeupCounterInMs) {
  * It takes the key, card UID and the key type to authenticate at a given block address. The
  * response contains 1 byte indicating the authentication status.
 */
-int16_t PN5180::mifareAuthenticate(uint8_t blockNo, uint8_t *key, uint8_t keyType, uint8_t *uid) {
+int16_t PN5180::mifareAuthenticate(uint8_t blockNo, const uint8_t *key, uint8_t keyType, const uint8_t *uid) {
   if (keyType != 0x60 && keyType != 0x61){
     PN5180DEBUG(F("*** ERROR: invalid key type supplied!\n"));
     return -2;

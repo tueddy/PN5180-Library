@@ -110,7 +110,7 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
   } 
   uint8_t *p = (uint8_t*)&(collision[0]);
   //                      Flags,  CMD,
-  uint8_t inventory[7] = { 0x06, 0x01, uint8_t(maskLen*4), p[0], p[1], p[2], p[3] };
+  const uint8_t inventory[7] = { 0x06, 0x01, uint8_t(maskLen*4), p[0], p[1], p[2], p[3] };
   //                         |\- inventory flag + high data rate
   //                         \-- 16 slots: upto 16 cards, no AFI field present
   uint8_t cmdLen = 3 + (maskLen/2) + (maskLen%2);
@@ -211,7 +211,7 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
  *  when ERROR flag is NOT set:
  *    SOF, Flags, BlockData (len=blockLength), CRC16, EOF
  */
-ISO15693ErrorCode PN5180ISO15693::readSingleBlock(uint8_t *uid, uint8_t blockNo, uint8_t *blockData, uint8_t blockSize) {
+ISO15693ErrorCode PN5180ISO15693::readSingleBlock(const uint8_t *uid, uint8_t blockNo, uint8_t *blockData, uint8_t blockSize) {
   //                            flags, cmd, uid,             blockNo
   uint8_t readSingleBlock[] = { 0x22, 0x20, 1,2,3,4,5,6,7,8, blockNo }; // UID has LSB first!
   //                              |\- high data rate
@@ -242,7 +242,7 @@ ISO15693ErrorCode PN5180ISO15693::readSingleBlock(uint8_t *uid, uint8_t blockNo,
   PN5180DEBUG("Value=");
   
   for (int i=0; i<blockSize; i++) {
-    blockData[i] = resultPtr[2+i];
+    blockData[i] = resultPtr[1+i];
 #ifdef DEBUG    
     PN5180DEBUG(formatHex(blockData[i]));
     PN5180DEBUG(" ");
@@ -292,7 +292,7 @@ ISO15693ErrorCode PN5180ISO15693::readSingleBlock(uint8_t *uid, uint8_t blockNo,
  *  when ERROR flag is NOT set:
  *    SOF, Resp.Flags, CRC16, EOF
  */
-ISO15693ErrorCode PN5180ISO15693::writeSingleBlock(uint8_t *uid, uint8_t blockNo, uint8_t *blockData, uint8_t blockSize) {
+ISO15693ErrorCode PN5180ISO15693::writeSingleBlock(const uint8_t *uid, uint8_t blockNo, const uint8_t *blockData, uint8_t blockSize) {
   //                            flags, cmd, uid,             blockNo
   uint8_t writeSingleBlock[] = { 0x22, 0x21, 1,2,3,4,5,6,7,8, blockNo }; // UID has LSB first!
   //                               |\- high data rate
@@ -363,7 +363,7 @@ ISO15693ErrorCode PN5180ISO15693::writeSingleBlock(uint8_t *uid, uint8_t blockNo
  *  when ERROR flag is NOT set:
  *    SOF, Flags, BlockData (len=blockSize * numBlock), CRC16, EOF
  */
-ISO15693ErrorCode PN5180ISO15693::readMultipleBlock(uint8_t *uid, uint8_t blockNo, uint8_t numBlock, uint8_t *blockData, uint8_t blockSize) {
+ISO15693ErrorCode PN5180ISO15693::readMultipleBlock(const uint8_t *uid, uint8_t blockNo, uint8_t numBlock, uint8_t *blockData, uint8_t blockSize) {
   if(blockNo > numBlock-1){ // Attempted to start at a block greater than the num blocks on the VICC
     PN5180DEBUG("Starting block exceeds length of data");
     return ISO15693_EC_BLOCK_NOT_AVAILABLE;
@@ -603,7 +603,7 @@ ISO15693ErrorCode PN5180ISO15693::getRandomNumber(uint8_t *randomData) {
  * to access the different protected functionalities of the following commands. 
  * The SET PASSWORD command has to be executed just once for the related passwords if the label is powered
  */
-ISO15693ErrorCode PN5180ISO15693::setPassword(uint8_t identifier, uint8_t *password, uint8_t *random) {
+ISO15693ErrorCode PN5180ISO15693::setPassword(uint8_t identifier, const uint8_t *password, const uint8_t *random) {
   uint8_t setPassword[] = {0x02, 0xB3, 0x04, 0x04, 0x00, 0x00, 0x00, 0x00};
   uint8_t *readBuffer;
   setPassword[3] = identifier;
@@ -619,7 +619,7 @@ ISO15693ErrorCode PN5180ISO15693::setPassword(uint8_t identifier, uint8_t *passw
  * Privacy mode if the Privacy password is correct. The ICODE SLIX2 will not respond to
  * any command except GET RANDOM NUMBER and SET PASSWORD
  */
-ISO15693ErrorCode PN5180ISO15693::enablePrivacy(uint8_t *password, uint8_t *random) {
+ISO15693ErrorCode PN5180ISO15693::enablePrivacy(const uint8_t *password, const uint8_t *random) {
   uint8_t setPrivacy[] = {0x02, 0xBA, 0x04, 0x00, 0x00, 0x00, 0x00};
   uint8_t *readBuffer;
   setPrivacy[3] = password[0] ^ random[0];
@@ -631,30 +631,30 @@ ISO15693ErrorCode PN5180ISO15693::enablePrivacy(uint8_t *password, uint8_t *rand
 
 
 // disable privacy mode for ICODE SLIX2 tag with given password
-ISO15693ErrorCode PN5180ISO15693::disablePrivacyMode(uint8_t *password) {
+ISO15693ErrorCode PN5180ISO15693::disablePrivacyMode(const uint8_t *password) {
   // get a random number from the tag
-  uint8_t random[]= {0x00, 0x00};
-  ISO15693ErrorCode rc = getRandomNumber(random);
+  uint8_t data[]= {0x00, 0x00};
+  ISO15693ErrorCode rc = getRandomNumber(data);
   if (rc != ISO15693_EC_OK) {
     return rc;
   }
   
   // set password to disable privacy mode 
-  rc = setPassword(0x04, password, random);
+  rc = setPassword(0x04, password, data);
   return rc; 
 }
 
 // enable privacy mode for ICODE SLIX2 tag with given password 
-ISO15693ErrorCode PN5180ISO15693::enablePrivacyMode(uint8_t *password) {
+ISO15693ErrorCode PN5180ISO15693::enablePrivacyMode(const uint8_t *password) {
   // get a random number from the tag
-  uint8_t random[]= {0x00, 0x00};
-  ISO15693ErrorCode rc = getRandomNumber(random);
+  uint8_t data[]= {0x00, 0x00};
+  ISO15693ErrorCode rc = getRandomNumber(data);
   if (rc != ISO15693_EC_OK) {
     return rc;
   }
   
   // enable privacy command to lock the tag
-  rc = enablePrivacy(password, random);
+  rc = enablePrivacy(password, data);
   return rc; 
 }
 
@@ -713,7 +713,7 @@ ISO15693ErrorCode PN5180ISO15693::enablePrivacyMode(uint8_t *password) {
  *   -1 = No card detected
  *   >0 = Error code
  */
-ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(uint8_t *cmd, uint8_t cmdLen, uint8_t **resultPtr) {
+ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(const uint8_t *cmd, uint8_t cmdLen, uint8_t **resultPtr) {
 #ifdef DEBUG
   PN5180DEBUG(F("Issue Command 0x"));
   PN5180DEBUG(formatHex(cmd[1]));
