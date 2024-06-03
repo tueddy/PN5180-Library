@@ -66,7 +66,7 @@ public:
    */
 public:   
   bool setupRF();
-  const char *strerror(ISO15693ErrorCode errno);
+  const char *strerror(ISO15693ErrorCode code);
     
 };
 
