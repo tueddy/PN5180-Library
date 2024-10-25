@@ -506,7 +506,9 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 
   uint8_t infoFlags = readBuffer[1];
   if (infoFlags & 0x01) { // DSFID flag
+#ifdef DEBUG
     uint8_t dsfid = *p++;
+#endif
     PN5180DEBUG("DSFID=");  // Data storage format identifier
     PN5180DEBUG(formatHex(dsfid));
     PN5180DEBUG("\n");
@@ -563,7 +565,9 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 #endif
    
   if (infoFlags & 0x08) { // IC reference
+#ifdef DEBUG
     uint8_t iRef = *p++;
+#endif
     PN5180DEBUG("IC Ref=");
     PN5180DEBUG(formatHex(iRef));
     PN5180DEBUG("\n");
