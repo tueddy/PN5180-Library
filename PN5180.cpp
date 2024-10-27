@@ -44,6 +44,9 @@ PN5180::PN5180(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, SPIClass& spi) :
   PN5180_NSS(SSpin),
   PN5180_BUSY(BUSYpin),
   PN5180_RST(RSTpin),
+  PN5180_MOSI(-1),
+  PN5180_MISO(-1),
+  PN5180_SCK(-1),
   PN5180_SPI(spi)
 {
   /*
@@ -62,7 +65,13 @@ PN5180::~PN5180() {
   }
 }
 
-void PN5180::begin() {
+// If you specify ss parameter here it will override the SSpin specified in the class initialization
+void PN5180::begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss) {
+  PN5180_SCK  = sck;
+  PN5180_MISO = miso;
+  PN5180_MOSI = mosi;
+  if (ss >= 0) PN5180_NSS = ss; // ss was specified so override any NSS from class initialization
+
   pinMode(PN5180_NSS, OUTPUT);
   pinMode(PN5180_BUSY, INPUT);
   pinMode(PN5180_RST, OUTPUT);
@@ -70,12 +79,12 @@ void PN5180::begin() {
   digitalWrite(PN5180_NSS, HIGH); // disable
   digitalWrite(PN5180_RST, HIGH); // no reset
 
-  PN5180_SPI.begin();
+  PN5180_SPI.begin(PN5180_SCK, PN5180_MISO, PN5180_MOSI, PN5180_NSS);
   PN5180DEBUG(F("SPI pinout: "));
-  PN5180DEBUG(F("SS=")); PN5180DEBUG(SS);
-  PN5180DEBUG(F(", MOSI=")); PN5180DEBUG(MOSI);
-  PN5180DEBUG(F(", MISO=")); PN5180DEBUG(MISO);
-  PN5180DEBUG(F(", SCK=")); PN5180DEBUG(SCK);
+  PN5180DEBUG(F("SS=")); PN5180DEBUG(PN5180_NSS);
+  PN5180DEBUG(F(", MOSI=")); PN5180DEBUG(PN5180_MOSI);
+  PN5180DEBUG(F(", MISO=")); PN5180DEBUG(PN5180_MISO);
+  PN5180DEBUG(F(", SCK=")); PN5180DEBUG(PN5180_SCK);
   PN5180DEBUG("\n");
 }
 
