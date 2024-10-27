@@ -7,6 +7,12 @@ Arduino Uno / Arduino ESP-32 library for PN5180-NFC Module from NXP Semiconducto
 
 Release Notes:
 
+Version 2.3.2 - 27.10.2024
+
+	* Allow to use custom spi pins #12, thanks to @mjmeans !
+	* Create .gitattributes #10, thanks to @mjmeans 
+	* replace errno, which is often a macro, thanks to @egnor
+
 Version 2.3.1 - 01.10.2024
 
 	* create a release with new version numbering
@@ -15,6 +21,7 @@ Version 2.3 - 29.05.2024
 
 	* cppcheck: make some params const
 	* transceiveCommand: restore state of SS in case of an error 
+	
 Version 2.2 - 13.01.2024
 
 	* Add code to allow authentication with Mifare Classic cards, thanks to @golyalpha !
