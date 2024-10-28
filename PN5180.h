@@ -48,6 +48,16 @@
 #define EEPROM_VERSION      (0x14)
 #define IRQ_PIN_CONFIG      (0x1A)
 
+//PN5180 EEPROM Addresses - LPCD (Low Power Card Detection)
+#define DPC_XI              (0x5C) // DPC AGC Trim Value
+
+#define LPCD_REFERENCE_VALUE            (0x34)  // LPCD Gear number
+#define LPCD_FIELD_ON_TIME              (0x36)  // LPCD RF on time (μs) = 62 + (8 * LPCD_FIELD_ON_TIME)
+#define LPCD_THRESHOLD                  (0x37)  // LPCD wakes up if current AGC > AGC reference + LCPD_THRESHOLD (03..08: very sensitive, 40..50: very robust)
+#define LPCD_REFVAL_GPO_CONTROL         (0x38)  // LPCD Reference Value Selectopn and GPO control
+#define LPCD_GPO_TOGGLE_BEFORE_FIELD_ON (0x39)  // 
+#define LPCD_GPO_TOGGLE_AFTER_FIELD_ON  (0x3A)  // 
+
 enum PN5180TransceiveStat {
   PN5180_TS_Idle = 0,
   PN5180_TS_WaitTransmit = 1,
