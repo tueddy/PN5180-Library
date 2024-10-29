@@ -579,10 +579,11 @@ bool PN5180::loadRFConfig(uint8_t txConf, uint8_t rxConf) {
  * This command is used to switch on the internal RF field. If enabled the TX_RFON_IRQ is
  * set after the field is switched on.
  */
-bool PN5180::setRF_on() {
+bool PN5180::setRF_on(bool disableCollisionAvoidance, bool activeCommunicationMode) {
   PN5180DEBUG_PRINTLN(F("Set RF ON"));
   PN5180DEBUG_ENTER;
 
+  uint8_t param = ((disableCollisionAvoidance) ? 1:0) & ((activeCommunicationMode) ? 1<<1:0);
   uint8_t cmd[] = { PN5180_RF_ON, 0x00 };
 
   transceiveCommand(cmd, sizeof(cmd));

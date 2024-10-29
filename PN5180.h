@@ -138,7 +138,7 @@ public:
   bool loadRFConfig(uint8_t txConf, uint8_t rxConf);
 
   /* cmd 0x16 */
-  bool setRF_on();
+  bool setRF_on(bool disableCollisionAvoidance = false, bool activeCommunicationMode = false);
   /* cmd 0x17 */
   bool setRF_off();
 
