@@ -32,13 +32,13 @@
 #define RX_WAIT_CONFIG      (0x11)
 #define CRC_RX_CONFIG       (0x12)
 #define RX_STATUS           (0x13)
-#define TX_WAIT_CONFIG	    (0x17)
-#define TX_CONFIG			(0x18)
+#define TX_WAIT_CONFIG      (0x17)
+#define TX_CONFIG           (0x18)
 #define CRC_TX_CONFIG       (0x19)
 #define RF_STATUS           (0x1d)
 #define SYSTEM_STATUS       (0x24)
 #define TEMP_CONTROL        (0x25)
-#define AGC_REF_CONFIG		(0x26)
+#define AGC_REF_CONFIG      (0x26)
 
 
 // PN5180 EEPROM Addresses

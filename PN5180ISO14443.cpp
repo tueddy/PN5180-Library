@@ -29,6 +29,8 @@ PN5180ISO14443::PN5180ISO14443(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, S
 
 bool PN5180ISO14443::setupRF() {
   PN5180DEBUG_PRINTLN(F("Loading RF-Configuration..."));
+  PN5180DEBUG_ENTER;
+  
   if (loadRFConfig(0x00, 0x80)) {  // ISO14443 parameters
     PN5180DEBUG_PRINTLN(F("done."));
   }
@@ -53,11 +55,14 @@ bool PN5180ISO14443::setupRF() {
 uint16_t PN5180ISO14443::rxBytesReceived() {
 	PN5180DEBUG_PRINTLN(F("PN5180ISO14443::rxBytesReceived()"));	
 	PN5180DEBUG_ENTER;
+	
 	uint32_t rxStatus;
 	uint16_t len = 0;
+
 	readRegister(RX_STATUS, &rxStatus);
 	// Lower 9 bits has length
 	len = (uint16_t)(rxStatus & 0x000001ff);
+
 	PN5180DEBUG_EXIT;
 	return len;
 }
@@ -87,12 +92,14 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	PN5180DEBUG_PRINTF(F("PN5180ISO14443::activateTypeA(*buffer, kind=%d)"), kind);
 	PN5180DEBUG_PRINTLN();
 	PN5180DEBUG_ENTER;
+
 	// Load standard TypeA protocol already done in reset()
 	if (!loadRFConfig(0x0, 0x80)) {
 		PN5180DEBUG_PRINTLN(F("*** ERROR: Load standard TypeA protocol failed!"));
 		PN5180DEBUG_EXIT;
 		return -1;
 	}
+
 	// activate RF field
 	setRF_on();
 	// wait RF-field to ramp-up
@@ -124,7 +131,7 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 		return -1;
 	}
 		
-	  // activate TRANSCEIVE routine  
+	// activate TRANSCEIVE routine  
 	if (!writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003)) {
 		PN5180DEBUG_PRINTLN(F("*** ERROR: Activates TRANSCEIVE routine failed!"));
 		PN5180DEBUG_EXIT;
@@ -168,13 +175,17 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	
 	// 
 	unsigned long startedWaiting = millis();
+    PN5180DEBUG_PRINTLN(F("wait for PN5180_TS_WaitTransmit (max 200ms)"));
+    PN5180DEBUG_OFF;
 	while (PN5180_TS_WaitTransmit != getTransceiveState()) {   
 		if (millis() - startedWaiting > 200) {
+			PN5180DEBUG_ON;
 			PN5180DEBUG_PRINTLN(F("*** ERROR: timeout in PN5180_TS_WaitTransmit!"));
 			PN5180DEBUG_EXIT;
 			return -1; 
 		}	
 	}
+    PN5180DEBUG_ON;
 	
 	// clear all IRQs
 	clearIRQStatus(0xffffffff); 
@@ -364,7 +375,6 @@ int8_t PN5180ISO14443::readCardSerial(uint8_t *buffer) {
 	// try to activate Type A until response or timeout
     uint8_t response[10] = { 0 };
 	int8_t uidLength = activateTypeA(response, 0);
-
 	
 	if (uidLength <= 0){
 	  PN5180DEBUG_EXIT;
@@ -427,6 +437,7 @@ bool PN5180ISO14443::isCardPresent() {
     uint8_t buffer[10];
 	
 	bool ret = (readCardSerial(buffer) >=4);
+
 	PN5180DEBUG_EXIT;
 	return ret;
 }

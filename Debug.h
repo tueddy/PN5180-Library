@@ -20,13 +20,14 @@
 #define DEBUG_H
 
 #ifdef DEBUG
-static uint8_t debugIndent;
-static uint8_t debugIndentN;
-static bool debugNL = true;
+extern uint8_t _pn5180_debugIndent;
+extern uint8_t _pn5180_debugIndentN;
+extern bool _pn5180_debugNL;
+extern uint8_t _pn5180_debugSilent;
 
 // These macros are helper macros to make the see the debug macros like function calls so they do not alter any current code block structures when the macro contains if/else/break, etc.
-#define __DEBUG_BEGIN__ 	do{if(DEBUG){
-#define __DEBUG_END__   	}}while(0)
+#define __DEBUG_BEGIN__   do{if(DEBUG){
+#define __DEBUG_END__     }}while(0)
 
 // DEBUG print with indention macros:
 //
@@ -35,6 +36,8 @@ static bool debugNL = true;
 //   2. If you didn't use PN5180DEBUG_PRINTLN, then follow it with PN5180DEBUG_PRINTLN() without parameters.
 //   3. Use PN5180DEBUG_ENTER, which will increment the indent level.
 //   4. Before every return call in the method, use PN5180DEBUG_EXIT to decrement the indent level.
+//   5. Use PN5180DEBUG_OFF and PN5180DEBUG_ON to block debug output for a call tree.
+//      You can see this used in the PN5180::setRF_on() which blcks the thousands repeated debug messages to readRegister() and tranceiveCommand() functions while allowing those functions to continue to issue debug messages when called from other functions.
 //
 // NOTES:
 //   1. Always make sure you end any secuence of _PRINT* macros with a _PRINTNL. See example below for putputting the register value.
@@ -80,14 +83,18 @@ static bool debugNL = true;
 // |   IRQ-Status=0x00000004
 // ----------------------------------
 
-#define PN5180DEBUG_ENTER        __DEBUG_BEGIN__ ++debugIndent; __DEBUG_END__
-#define PN5180DEBUG_EXIT         __DEBUG_BEGIN__ debugIndent-=((debugIndent>0)?1:0); __DEBUG_END__
-#define PN5180DEBUG_INDENT       __DEBUG_BEGIN__ Serial.print("| "); for (int debugIndentN=0; debugIndentN<debugIndent; debugIndentN++) Serial.print(" "); debugNL=false; __DEBUG_END__
-#define PN5180DEBUG_PRINTLN(...) __DEBUG_BEGIN__ if (debugNL) PN5180DEBUG_INDENT; Serial.println(__VA_ARGS__); debugNL=true; __DEBUG_END__
-#define PN5180DEBUG_PRINTF(...)  __DEBUG_BEGIN__ if (debugNL) PN5180DEBUG_INDENT; Serial.printf(__VA_ARGS__); __DEBUG_END__
-#define PN5180DEBUG_PRINT(...)   __DEBUG_BEGIN__ if (debugNL) PN5180DEBUG_INDENT; Serial.print(__VA_ARGS__); __DEBUG_END__
+#define PN5180DEBUG_OFF          __DEBUG_BEGIN__ ++_pn5180_debugSilent; __DEBUG_END__
+#define PN5180DEBUG_ON           __DEBUG_BEGIN__ _pn5180_debugSilent-=((_pn5180_debugSilent>0)?1:0); __DEBUG_END__
+#define PN5180DEBUG_ENTER        __DEBUG_BEGIN__ ++_pn5180_debugIndent; __DEBUG_END__
+#define PN5180DEBUG_EXIT         __DEBUG_BEGIN__ _pn5180_debugIndent-=((_pn5180_debugIndent>0)?1:0); __DEBUG_END__
+#define PN5180DEBUG_INDENT       __DEBUG_BEGIN__ Serial.print("| "); for (int _pn5180_debugIndentN=0; _pn5180_debugIndentN<_pn5180_debugIndent; _pn5180_debugIndentN++) Serial.print(" "); _pn5180_debugNL=false; __DEBUG_END__
+#define PN5180DEBUG_PRINTLN(...) __DEBUG_BEGIN__ if (!_pn5180_debugSilent) { if (_pn5180_debugNL) PN5180DEBUG_INDENT; Serial.println(__VA_ARGS__); _pn5180_debugNL=true; }; __DEBUG_END__
+#define PN5180DEBUG_PRINTF(...)  __DEBUG_BEGIN__ if (!_pn5180_debugSilent) { if (_pn5180_debugNL) PN5180DEBUG_INDENT; Serial.printf(__VA_ARGS__); }; __DEBUG_END__
+#define PN5180DEBUG_PRINT(...)   __DEBUG_BEGIN__ if (!_pn5180_debugSilent) { if (_pn5180_debugNL) PN5180DEBUG_INDENT; Serial.print(__VA_ARGS__); }; __DEBUG_END__
 #define PN5180DEBUG(msg)         PN5180DEBUG_PRINT(msg)
 #else
+#define PN5180DEBUG_OFF
+#define PN5180DEBUG_ON
 #define PN5180DEBUG_ENTER
 #define PN5180DEBUG_EXIT
 #define PN5180DEBUG_INDENT
