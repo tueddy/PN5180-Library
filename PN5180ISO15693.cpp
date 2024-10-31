@@ -579,7 +579,7 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 #endif
    
   if (infoFlags & 0x08) { // IC reference
-    uint8_t iRef = *p++;
+	uint8_t __attribute__((unused)) iRef = *p++;
     PN5180DEBUG("IC Ref=");
     PN5180DEBUG(formatHex(iRef));
     PN5180DEBUG_PRINTLN();
