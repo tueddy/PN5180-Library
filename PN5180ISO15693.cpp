@@ -522,7 +522,7 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 
   uint8_t infoFlags = readBuffer[1];
   if (infoFlags & 0x01) { // DSFID flag
-    uint8_t dsfid = *p++;
+    uint8_t __attribute__((unused)) dsfid = *p++;
     PN5180DEBUG("DSFID=");  // Data storage format identifier
     PN5180DEBUG(formatHex(dsfid));
     PN5180DEBUG_PRINTLN();
