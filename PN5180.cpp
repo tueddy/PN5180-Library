@@ -28,7 +28,7 @@
 #define PN5180_WRITE_REGISTER_OR_MASK   (0x01)
 #define PN5180_WRITE_REGISTER_AND_MASK  (0x02)
 #define PN5180_READ_REGISTER            (0x04)
-#define PN5180_WRITE_EEPROM				(0x06)
+#define PN5180_WRITE_EEPROM             (0x06)
 #define PN5180_READ_EEPROM              (0x07)
 #define PN5180_SEND_DATA                (0x09)
 #define PN5180_READ_DATA                (0x0A)
@@ -67,6 +67,9 @@ PN5180::~PN5180() {
 
 // If you specify ss parameter here it will override the SSpin specified in the class initialization
 void PN5180::begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss) {
+  PN5180DEBUG_PRINTF(F("PN5180::begin(sck=%d, miso=%d, mosi=%d, ss=%d)"), sck, miso, mosi, ss);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
   PN5180_SCK  = sck;
   PN5180_MISO = miso;
   PN5180_MOSI = mosi;
@@ -96,12 +99,17 @@ void PN5180::begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss) {
     PN5180DEBUG(F(", MISO=")); PN5180DEBUG(MISO);
     PN5180DEBUG(F(", SCK=")); PN5180DEBUG(SCK);
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_EXIT;
 }
 
 void PN5180::end() {
+  PN5180DEBUG_PRINTF(F("PN5180::end()"));
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
   digitalWrite(PN5180_NSS, HIGH); // disable
   PN5180_SPI.end();
+  PN5180DEBUG_EXIT;
 }
 
 /*
@@ -111,6 +119,9 @@ void PN5180::end() {
  * raised.
  */
 bool PN5180::writeRegister(uint8_t reg, uint32_t value) {
+  PN5180DEBUG_PRINTF(F("PN5180::writeRegister(reg=%d, value=%d)"), reg, value);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
   uint8_t *p = (uint8_t*)&value;
 
 #ifdef DEBUG
@@ -120,7 +131,7 @@ bool PN5180::writeRegister(uint8_t reg, uint32_t value) {
   for (int i=0; i<4; i++) {
     PN5180DEBUG(formatHex(p[i]));
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
 
   /*
@@ -131,6 +142,7 @@ bool PN5180::writeRegister(uint8_t reg, uint32_t value) {
 
   transceiveCommand(cmd, sizeof(cmd));
 
+  PN5180DEBUG_EXIT;
   return true;
 }
 
@@ -143,6 +155,9 @@ bool PN5180::writeRegister(uint8_t reg, uint32_t value) {
  * raised.
  */
 bool PN5180::writeRegisterWithOrMask(uint8_t reg, uint32_t mask) {
+  PN5180DEBUG_PRINTF(F("PN5180::writeRegisterWithOrMask(reg=%d, mask=%d)"), reg, mask);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
   uint8_t *p = (uint8_t*)&mask;
 
 #ifdef DEBUG
@@ -152,13 +167,14 @@ bool PN5180::writeRegisterWithOrMask(uint8_t reg, uint32_t mask) {
   for (int i=0; i<4; i++) {
     PN5180DEBUG(formatHex(p[i]));
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
 
   uint8_t cmd[] = { PN5180_WRITE_REGISTER_OR_MASK, reg, p[0], p[1], p[2], p[3] };
 
   transceiveCommand(cmd, sizeof(cmd));
 
+  PN5180DEBUG_EXIT;
   return true;
 }
 
@@ -171,6 +187,9 @@ bool PN5180::writeRegisterWithOrMask(uint8_t reg, uint32_t mask) {
  * raised.
  */
 bool PN5180::writeRegisterWithAndMask(uint8_t reg, uint32_t mask) {
+  PN5180DEBUG_PRINTF(F("PN5180::writeRegisterWithAndMask(reg=%d, mask=%d)"), reg, mask);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
   uint8_t *p = (uint8_t*)&mask;
 
 #ifdef DEBUG
@@ -180,13 +199,14 @@ bool PN5180::writeRegisterWithAndMask(uint8_t reg, uint32_t mask) {
   for (int i=0; i<4; i++) {
     PN5180DEBUG(formatHex(p[i]));
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
 
   uint8_t cmd[] = { PN5180_WRITE_REGISTER_AND_MASK, reg, p[0], p[1], p[2], p[3] };
 
   transceiveCommand(cmd, sizeof(cmd));
 
+  PN5180DEBUG_EXIT;
   return true;
 }
 
@@ -198,9 +218,9 @@ bool PN5180::writeRegisterWithAndMask(uint8_t reg, uint32_t mask) {
  * raised.
  */
 bool PN5180::readRegister(uint8_t reg, uint32_t *value) {
-  PN5180DEBUG(F("Reading register 0x"));
-  PN5180DEBUG(formatHex(reg));
-  PN5180DEBUG(F("...\n"));
+  PN5180DEBUG_PRINTF(F("PN5180::readRegister(reg=0x%s, *value)"), formatHex(reg));
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
 
   uint8_t cmd[] = { PN5180_READ_REGISTER, reg };
 
@@ -208,8 +228,9 @@ bool PN5180::readRegister(uint8_t reg, uint32_t *value) {
 
   PN5180DEBUG(F("Register value=0x"));
   PN5180DEBUG(formatHex(*value));
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 
+  PN5180DEBUG_EXIT;
   return true;
 }
 
@@ -217,12 +238,16 @@ bool PN5180::readRegister(uint8_t reg, uint32_t *value) {
  * WRITE_EEPROM - 0x06
  */
 bool PN5180::writeEEprom(uint8_t addr, const uint8_t *buffer, uint8_t len) {
-	uint8_t cmd[len + 2];
-	cmd[0] = PN5180_WRITE_EEPROM;
-	cmd[1] = addr;
-	for (int i = 0; i < len; i++) cmd[2 + i] = buffer[i];
-	transceiveCommand(cmd, len + 2);
-	return true;
+  PN5180DEBUG_PRINTF(F("PN5180::writeEEprom(addr=%s, *buffer, len=%d)"), formatHex(addr), len);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
+  uint8_t cmd[len + 2];
+  cmd[0] = PN5180_WRITE_EEPROM;
+  cmd[1] = addr;
+  for (int i = 0; i < len; i++) cmd[2 + i] = buffer[i];
+  transceiveCommand(cmd, len + 2);
+  PN5180DEBUG_EXIT;
+  return true;
 }
 
 /*
@@ -237,8 +262,12 @@ bool PN5180::writeEEprom(uint8_t addr, const uint8_t *buffer, uint8_t len) {
  * raised.
  */
 bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
+  PN5180DEBUG_PRINTF(F("PN5180::readEEprom(addr=%s, *buffer, len=%d)"), formatHex(addr), len);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
   if ((addr > 254) || ((addr+len) > 254)) {
-    PN5180DEBUG(F("ERROR: Reading beyond addr 254!\n"));
+    PN5180DEBUG_PRINTLN(F("ERROR: Reading beyond addr 254!"));
+    PN5180DEBUG_EXIT;
     return false;
   }
 
@@ -246,7 +275,7 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
   PN5180DEBUG(formatHex(addr));
   PN5180DEBUG(F(", size="));
   PN5180DEBUG(len);
-  PN5180DEBUG(F("...\n"));
+  PN5180DEBUG_PRINTLN(F("..."));
 
   uint8_t cmd[] = { PN5180_READ_EEPROM, addr, uint8_t(len) };
 
@@ -258,9 +287,10 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
     PN5180DEBUG(formatHex(buffer[i]));
     PN5180DEBUG(" ");
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
 
+  PN5180DEBUG_EXIT;
   return true;
 }
 
@@ -281,8 +311,12 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
  * with ‘Transceive’ command set. If the condition is not fulfilled, an exception is raised.
  */
 bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
+  PN5180DEBUG_PRINTF(F("PN5180::sendData(*data, len=%d, validBits=%d)"), len, validBits);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
   if (len > 260) {
-    PN5180DEBUG(F("ERROR: sendData with more than 260 bytes is not supported!\n"));
+    PN5180DEBUG_PRINTLN(F("ERROR: sendData with more than 260 bytes is not supported!"));
+    PN5180DEBUG_EXIT;
     return false;
   }
 
@@ -294,7 +328,7 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
     PN5180DEBUG(" ");
     PN5180DEBUG(formatHex(data[i]));
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
 
   uint8_t buffer[len+2];
@@ -317,11 +351,14 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
 
   PN5180TransceiveStat transceiveState = getTransceiveState();
   if (PN5180_TS_WaitTransmit != transceiveState) {
-    PN5180DEBUG(F("*** ERROR: Transceiver not in state WaitTransmit!?\n"));
+    PN5180DEBUG_PRINTLN(F("*** ERROR: Transceiver not in state WaitTransmit!?"));
+    PN5180DEBUG_EXIT;
     return false;
   }
 
-  return transceiveCommand(buffer, len+2);
+  bool ret = transceiveCommand(buffer, len+2);
+  PN5180DEBUG_EXIT;
+  return ret;
 }
 
 /*
@@ -335,14 +372,19 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
  * reception buffer is invalid. If the condition is not fulfilled, an exception is raised.
  */
 uint8_t * PN5180::readData(int len) {
+  PN5180DEBUG_PRINTF(F("PN5180::readData(len=%d)"), len);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
+  
   if (len < 0 || len > 508) {
     Serial.println(F("*** FATAL: Reading more than 508 bytes is not supported!"));
+    PN5180DEBUG_EXIT;
     return 0L;
   }
 
   PN5180DEBUG(F("Reading Data (len="));
   PN5180DEBUG(len);
-  PN5180DEBUG(F(")...\n"));
+  PN5180DEBUG_PRINTLN(F(")..."));
 
   uint8_t cmd[] = { PN5180_READ_DATA, 0x00 };
 
@@ -356,6 +398,7 @@ uint8_t * PN5180::readData(int len) {
        readBufferDynamic508 = (uint8_t *) malloc(508);
        if (!readBufferDynamic508) {
         PN5180DEBUG(F("Cannot allocate the read buffer of 508 Bytes!"));
+        PN5180DEBUG_EXIT;
         return 0;
        }
     }
@@ -369,21 +412,29 @@ uint8_t * PN5180::readData(int len) {
     PN5180DEBUG(formatHex(readBuffer[i]));
     PN5180DEBUG(" ");
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
 
+  PN5180DEBUG_EXIT;
   return readBuffer;
 }
 
 bool PN5180::readData(int len, uint8_t *buffer) {
+  PN5180DEBUG_PRINTF(F("PN5180::readData(len=%d, *buffer)"), len);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
+  
   if (len < 0 || len > 508) {
-		return false;
-	}
-	uint8_t cmd[] = { PN5180_READ_DATA, 0x00 };
-	return transceiveCommand(cmd, sizeof(cmd), buffer, len);
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+  uint8_t cmd[] = { PN5180_READ_DATA, 0x00 };
+  bool ret = transceiveCommand(cmd, sizeof(cmd), buffer, len);
+  PN5180DEBUG_EXIT;
+  return ret;
 }
 
-/* prepare LPCD registers */
+/* prepare LPCD registers (Low Power Card Detection) */
 bool PN5180::prepareLPCD() {
   //=======================================LPCD CONFIG================================================================================
   PN5180DEBUG(F("----------------------------------"));
@@ -462,7 +513,7 @@ bool PN5180::switchToLPCD(uint16_t wakeupCounterInMs) {
 */
 int16_t PN5180::mifareAuthenticate(uint8_t blockNo, const uint8_t *key, uint8_t keyType, const uint8_t *uid) {
   if (keyType != 0x60 && keyType != 0x61){
-    PN5180DEBUG(F("*** ERROR: invalid key type supplied!\n"));
+    PN5180DEBUG_PRINTLN(F("*** ERROR: invalid key type supplied!"));
     return -2;
   }
 
@@ -481,7 +532,7 @@ int16_t PN5180::mifareAuthenticate(uint8_t blockNo, const uint8_t *key, uint8_t 
   bool retval = transceiveCommand(cmdBuffer, 13, rcvBuffer, 1);
 
   if (!retval){
-    PN5180DEBUG(F("*** ERROR: sending command failed!\n"));
+    PN5180DEBUG_PRINTLN(F("*** ERROR: sending command failed!"));
     return -3;
   }
   
@@ -512,12 +563,14 @@ bool PN5180::loadRFConfig(uint8_t txConf, uint8_t rxConf) {
   PN5180DEBUG(formatHex(txConf));
   PN5180DEBUG(F(", rxConf="));
   PN5180DEBUG(formatHex(rxConf));
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
 
   uint8_t cmd[] = { PN5180_LOAD_RF_CONFIG, txConf, rxConf };
 
   transceiveCommand(cmd, sizeof(cmd));
 
+  PN5180DEBUG_EXIT;
   return true;
 }
 
@@ -527,21 +580,29 @@ bool PN5180::loadRFConfig(uint8_t txConf, uint8_t rxConf) {
  * set after the field is switched on.
  */
 bool PN5180::setRF_on() {
-  PN5180DEBUG(F("Set RF ON\n"));
+  PN5180DEBUG_PRINTLN(F("Set RF ON"));
+  PN5180DEBUG_ENTER;
 
   uint8_t cmd[] = { PN5180_RF_ON, 0x00 };
 
   transceiveCommand(cmd, sizeof(cmd));
 
   unsigned long startedWaiting = millis();
+  
+  PN5180DEBUG_PRINTLN(F("wait for RF field to set up (max 500ms)"));
+  PN5180DEBUG_OFF;
   while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
     if (millis() - startedWaiting > 500) {
-	  PN5180DEBUG(F("Set RF ON timeout\n"));
-	  return false; 
-	}
-  }; 
+      PN5180DEBUG_ON;
+      PN5180DEBUG_PRINTLN(F("*** ERROR: Set RF ON timeout"));
+      PN5180DEBUG_EXIT;
+      return false; 
+    }
+  };
+  PN5180DEBUG_ON;
   
   clearIRQStatus(TX_RFON_IRQ_STAT);
+  PN5180DEBUG_EXIT;
   return true;
 }
 
@@ -551,20 +612,28 @@ bool PN5180::setRF_on() {
  * is set after the field is switched off.
  */
 bool PN5180::setRF_off() {
-  PN5180DEBUG(F("Set RF OFF\n"));
+  PN5180DEBUG_PRINTLN(F("Set RF OFF"));
+  PN5180DEBUG_ENTER;
 
   uint8_t cmd[] { PN5180_RF_OFF, 0x00 };
 
   transceiveCommand(cmd, sizeof(cmd));
 
   unsigned long startedWaiting = millis();
+  PN5180DEBUG_PRINTLN(F("wait for RF field to shut down (max 500ms)"));
+  PN5180DEBUG_OFF;
   while (0 == (TX_RFOFF_IRQ_STAT & getIRQStatus())) {   // wait for RF field to shut down
     if (millis() - startedWaiting > 500) {
-	  PN5180DEBUG(F("Set RF OFF timeout\n"));
-	  return false; 
-	}
-  }; 
+      PN5180DEBUG_ON;
+      PN5180DEBUG_PRINTLN(F("*** ERROR: Set RF OFF timeout"));
+      PN5180DEBUG_EXIT;
+      return false; 
+    }
+  };
+  PN5180DEBUG_ON;  
+  
   clearIRQStatus(TX_RFOFF_IRQ_STAT);
+  PN5180DEBUG_EXIT;
   return true;
 }
 
@@ -607,39 +676,44 @@ status register contain information on the exception.
  * If there is a parameter error, the IRQ is set to ACTIVE and a GENERAL_ERROR_IRQ is set.
  */
 bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_t *recvBuffer, size_t recvBufferLen) {
+  PN5180DEBUG_PRINTF(F("PN5180::transceiveCommand(*sendBuffer, sendBufferLen=%d, *recvBuffer, recvBufferLen=%d)"), sendBufferLen, recvBufferLen);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
 #ifdef DEBUG
   PN5180DEBUG(F("Sending SPI frame: '"));
   for (uint8_t i=0; i<sendBufferLen; i++) {
-    if (i>0) PN5180DEBUG(" ");
+    if (i>0) { PN5180DEBUG(" "); }
     PN5180DEBUG(formatHex(sendBuffer[i]));
   }
-  PN5180DEBUG("'\n");
+  PN5180DEBUG_PRINTLN("'");
 #endif
 
   // 0.
   unsigned long startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG("transceiveCommand timeout (send/0)");
-    	PN5180_SPI.endTransaction();
-		digitalWrite(PN5180_NSS, HIGH);
-		return false;
-	};
+      PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/0)");
+      PN5180_SPI.endTransaction();
+      digitalWrite(PN5180_NSS, HIGH);
+      PN5180DEBUG_EXIT;
+      return false;
+    };
   }; // wait until busy is low
   // 1.
   digitalWrite(PN5180_NSS, LOW); delay(1);
   // 2.
-  PN5180_SPI.transfer((uint8_t*)sendBuffer, sendBufferLen);	
+  PN5180_SPI.transfer((uint8_t*)sendBuffer, sendBufferLen);  
   // 3.
   startedWaiting = millis();
   while (HIGH != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG("transceiveCommand timeout (send/3)");
-    	PN5180_SPI.endTransaction();
-		digitalWrite(PN5180_NSS, HIGH);
-		return false;
-	}
+      PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/3)");
+      PN5180_SPI.endTransaction();
+      digitalWrite(PN5180_NSS, HIGH);
+      PN5180DEBUG_EXIT;
+      return false;
+    };
   }; // wait until busy is high
   // 4.
   digitalWrite(PN5180_NSS, HIGH); delay(1);
@@ -647,20 +721,22 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG("transceiveCommand timeout (send/5)");
-    	PN5180_SPI.endTransaction();
-		digitalWrite(PN5180_NSS, HIGH);
-		return false;
-	};
+      PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/5)");
+      PN5180_SPI.endTransaction();
+      digitalWrite(PN5180_NSS, HIGH);
+      PN5180DEBUG_EXIT;
+      return false;
+    };
   }; // wait until busy is low
 
   // check, if write-only
   if ((0 == recvBuffer) || (0 == recvBufferLen)) {
     PN5180_SPI.endTransaction();
-	digitalWrite(PN5180_NSS, HIGH);
+    digitalWrite(PN5180_NSS, HIGH);
+    PN5180DEBUG_EXIT;
     return true;
   }
-  PN5180DEBUG(F("Receiving SPI frame...\n"));
+  PN5180DEBUG_PRINTLN(F("Receiving SPI frame..."));
 
   // 1.
   digitalWrite(PN5180_NSS, LOW); 
@@ -671,11 +747,12 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis(); //delay(1);
   while (HIGH != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG("transceiveCommand timeout (receive/3)");
-    	PN5180_SPI.endTransaction();
-		digitalWrite(PN5180_NSS, HIGH);
-		return false;
-	};
+      PN5180DEBUG("*** ERROR: transceiveCommand timeout (receive/3)");
+      PN5180_SPI.endTransaction();
+      digitalWrite(PN5180_NSS, HIGH);
+      PN5180DEBUG_EXIT;
+      return false;
+    };
   }; // wait until busy is high
   // 4.
   digitalWrite(PN5180_NSS, HIGH); 
@@ -683,22 +760,24 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG("transceiveCommand timeout (receive/5)");
-    	PN5180_SPI.endTransaction();
-		digitalWrite(PN5180_NSS, HIGH);
-		return false;
-	};
+      PN5180DEBUG("*** ERROR: transceiveCommand timeout (receive/5)");
+      PN5180_SPI.endTransaction();
+      digitalWrite(PN5180_NSS, HIGH);
+      PN5180DEBUG_EXIT;
+      return false;
+    };
   }; // wait until busy is low
 
 #ifdef DEBUG
-  PN5180DEBUG(F("Received: "));
+  PN5180DEBUG(F("Received: '"));
   for (uint8_t i=0; i<recvBufferLen; i++) {
     if (i > 0) PN5180DEBUG(" ");
     PN5180DEBUG(formatHex(recvBuffer[i]));
   }
-  PN5180DEBUG("'\n");
+  PN5180DEBUG_PRINTLN("'");
 #endif
   PN5180_SPI.endTransaction();
+  PN5180DEBUG_EXIT;
   return true;
 }
 
@@ -706,24 +785,32 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
  * Reset NFC device
  */
 void PN5180::reset() {
+  PN5180DEBUG_PRINTLN(F("PN5180::reset()"));
+  PN5180DEBUG_ENTER;
   digitalWrite(PN5180_RST, LOW);  // at least 10us required
   delay(1);
   digitalWrite(PN5180_RST, HIGH); // 2ms to ramp up required
   delay(5);
 
   unsigned long startedWaiting = millis();
-  while (0 == (IDLE_IRQ_STAT & getIRQStatus())) {
-	// wait for system to start up (with timeout)
+  PN5180DEBUG_PRINTF(F("wait for system to start up (%d ms)"), commandTimeout);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_OFF;
+  while (0 == (IDLE_IRQ_STAT & getIRQStatus())) {   // wait for system to start up (with timeout)
     if (millis() - startedWaiting > commandTimeout) {
-		PN5180DEBUG(F("reset failed (timeout)!!!\n"));
-		// try again with larger time
-		digitalWrite(PN5180_RST, LOW);  
-		delay(10);
-		digitalWrite(PN5180_RST, HIGH); 
-		delay(50);
-		return;
-	}
+      PN5180DEBUG_ON;
+      PN5180DEBUG_PRINTLN(F("*** ERROR: reset failed (timeout)!!!"));
+      // try again with larger time
+      digitalWrite(PN5180_RST, LOW);  
+      delay(10);
+      digitalWrite(PN5180_RST, HIGH); 
+      delay(50);
+      PN5180DEBUG_EXIT;
+      return;
+    }
   }
+  PN5180DEBUG_ON;
+  PN5180DEBUG_EXIT;
 }
 
 /**
@@ -731,24 +818,31 @@ void PN5180::reset() {
  * @desc  read interrupt status register and clear interrupt status
  */
 uint32_t PN5180::getIRQStatus() {
-  PN5180DEBUG(F("Read IRQ-Status register...\n"));
+  PN5180DEBUG_PRINTLN(F("PN5180::getIRQStatus()"));
+  PN5180DEBUG_ENTER;
 
+  PN5180DEBUG_PRINTLN(F("Read IRQ-Status register..."));
   uint32_t irqStatus;
   readRegister(IRQ_STATUS, &irqStatus);
 
   PN5180DEBUG(F("IRQ-Status=0x"));
   PN5180DEBUG(formatHex(irqStatus));
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 
+  PN5180DEBUG_EXIT;
   return irqStatus;
 }
 
 bool PN5180::clearIRQStatus(uint32_t irqMask) {
-  PN5180DEBUG(F("Clear IRQ-Status with mask=x"));
-  PN5180DEBUG(formatHex(irqMask));
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTF(F("PN5180::clearIRQStatus(mask=%s)"),formatHex(irqMask));
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
 
-  return writeRegister(IRQ_CLEAR, irqMask);
+  PN5180DEBUG_PRINTLN(F("Clear IRQ-Status with mask"));
+  bool ret = writeRegister(IRQ_CLEAR, irqMask);
+
+  PN5180DEBUG_EXIT;
+  return ret;
 }
 
 /*
@@ -759,15 +853,22 @@ extern void showIRQStatus(uint32_t);
 #endif
 
 PN5180TransceiveStat PN5180::getTransceiveState() {
-  PN5180DEBUG(F("Get Transceive state...\n"));
+  PN5180DEBUG_PRINT(F("PN5180::getTransceiveState()"));
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
+
+  PN5180DEBUG_PRINTLN(F("Get Transceive state..."));
 
   uint32_t rfStatus;
+  PN5180TransceiveStat ret;
   if (!readRegister(RF_STATUS, &rfStatus)) {
 #ifdef DEBUG
     showIRQStatus(getIRQStatus());
 #endif
-    PN5180DEBUG(F("ERROR reading RF_STATUS register.\n"));
-    return PN5180TransceiveStat(0);
+    PN5180DEBUG_PRINTLN(F("ERROR reading RF_STATUS register."));
+    ret = PN5180TransceiveStat(0);
+    PN5180DEBUG_EXIT;
+    return ret;
   }
 
   /*
@@ -784,7 +885,9 @@ PN5180TransceiveStat PN5180::getTransceiveState() {
   uint8_t state = ((rfStatus >> 24) & 0x07);
   PN5180DEBUG(F("TRANSCEIVE_STATE=0x"));
   PN5180DEBUG(formatHex(state));
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 
-  return PN5180TransceiveStat(state);
+  ret = PN5180TransceiveStat(state);
+  PN5180DEBUG_EXIT;
+  return ret;
 }

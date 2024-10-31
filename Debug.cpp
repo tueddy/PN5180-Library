@@ -19,6 +19,11 @@
 #include <inttypes.h>
 #include "Debug.h"
 
+uint8_t _pn5180_debugIndent;
+uint8_t _pn5180_debugIndentN;
+bool _pn5180_debugNL = true;
+uint8_t _pn5180_debugSilent;
+
 #ifdef DEBUG
 
 static const char hexChar[] = "0123456789ABCDEF";

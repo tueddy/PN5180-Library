@@ -64,7 +64,7 @@ ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
 #endif
   }
   
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 
   return ISO15693_EC_OK;
 }
@@ -77,18 +77,21 @@ ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
  *
  */
 ISO15693ErrorCode PN5180ISO15693::getInventoryMultiple(uint8_t *uid, uint8_t maxTags, uint8_t *numCard) {
-  PN5180DEBUG("PN5180ISO15693: Get Inventory...");
+  PN5180DEBUG_PRINTF("PN5180ISO15693::getInventoryMultiple(maxTags=%d, numCard=%d)", maxTags, *numCard);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
   uint16_t collision[maxTags];
   *numCard = 0;
   uint8_t numCol = 0;
   inventoryPoll(uid, maxTags, numCard, &numCol, collision);
-  PN5180DEBUG("Number of collisions=");
-  PN5180DEBUG(numCol);
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTF("*** Number of collisions=%d", numCol);
+  PN5180DEBUG_PRINTLN();
 
   while(numCol){                                                 // 5+ Continue until no collisions detected
 #ifdef DEBUG
-    printf("inventoryPoll: Polling with mask=0x%X\n", collision[0]);
+    PN5180DEBUG(F("Polling with mask=0x"));
+    PN5180DEBUG(formatHex(collision[0]));
+    PN5180DEBUG_PRINTLN();
 #endif
     inventoryPoll(uid, maxTags, numCard, &numCol, collision);
     numCol--;
@@ -96,10 +99,15 @@ ISO15693ErrorCode PN5180ISO15693::getInventoryMultiple(uint8_t *uid, uint8_t max
       collision[i] = collision[i+1];
     }
   }
+  PN5180DEBUG_EXIT;
   return ISO15693_EC_OK;
 }
 
 ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, uint8_t *numCard, uint8_t *numCol, uint16_t *collision){
+  PN5180DEBUG_PRINTF("PN5180ISO15693::inventoryPoll(maxTags=%d, numCard=%d, numCol=%d)", maxTags, *numCard, *numCol);
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
+  
   uint8_t maskLen = 0;
   if(*numCol > 0){
     uint32_t mask = collision[0];
@@ -115,49 +123,58 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
   //                         \-- 16 slots: upto 16 cards, no AFI field present
   uint8_t cmdLen = 3 + (maskLen/2) + (maskLen%2);
 #ifdef DEBUG
-  printf("inventoryPoll inputs: maxTags=%d, numCard=%d, numCol=%d\n", maxTags, *numCard, *numCol);
-  printf("mask=%d, maskLen=%d, cmdLen=%d\n", p[0], maskLen, cmdLen);
+  PN5180DEBUG_PRINTF(F("mask=%d, maskLen=%d, cmdLen=%d"), p[0], maskLen, cmdLen);
+  PN5180DEBUG_PRINTLN();
 #endif
   clearIRQStatus(0x000FFFFF);                                      // 3. Clear all IRQ_STATUS flags
   sendData(inventory, cmdLen, 0);                                  // 4. 5. 6. Idle/StopCom Command, Transceive Command, Inventory command
   
-  for(int slot=0; slot<16; slot++){                                // 7. Loop to check 16 time slots for data
+  for(uint8_t slot=0; slot<16; slot++){                                // 7. Loop to check 16 time slots for data
     uint32_t rxStatus;
     uint32_t irqStatus = getIRQStatus();
     readRegister(RX_STATUS, &rxStatus);
+    PN5180DEBUG(F("slot="));
+    PN5180DEBUG(formatHex(slot));
+    PN5180DEBUG(F(": "));
+    PN5180DEBUG(F("irqStatus="));
+    PN5180DEBUG(formatHex(irqStatus));
+    PN5180DEBUG(F(", RX_STATUS="));
+    PN5180DEBUG(formatHex(rxStatus));
+    PN5180DEBUG(F(": "));
     uint16_t len = (uint16_t)(rxStatus & 0x000001ff);
     if((rxStatus >> 18) & 0x01 && *numCol < maxTags){              // 7+ Determine if a collision occurred
       if(maskLen > 0) collision[*numCol] = collision[0] | (slot << (maskLen * 2));
       else collision[*numCol] = slot << (maskLen * 2); // Yes, store position of collision
       *numCol = *numCol + 1;
 #ifdef DEBUG
-      printf("Collision detected for UIDs matching %X starting at LSB", collision[*numCol-1]);
+      PN5180DEBUG_PRINTF("Collision detected for UIDs matching %X starting at LSB", collision[*numCol-1]);
+      PN5180DEBUG_PRINTLN();
 #endif
     }
     else if(!(irqStatus & RX_IRQ_STAT) && !len){                   // 8. Check if a card has responded
-      PN5180DEBUG("getInventoryMultiple: No card in this time slot. State=");
-      PN5180DEBUG(irqStatus);
-      PN5180DEBUG("\n");
+      PN5180DEBUG(F("No card in this time slot."));
+      PN5180DEBUG_PRINTLN();
     }
     else{
 #ifdef DEBUG
-      printf("slot=%d, irqStatus: %ld, RX_STATUS: %ld, Response length=%d\n", slot, irqStatus, rxStatus, len);
+      PN5180DEBUG_PRINTF("slot=%d, irqStatus: %ld, RX_STATUS: %ld, Response length=%d", slot, irqStatus, rxStatus, len);
 #endif
       uint8_t *readBuffer;
       readBuffer = readData(len+1);                                // 9. Read reception buffer
-#ifdef DEBUG
-      printf("readBuffer= ");
-      for(int i=0; i<len+1; i++){
-        if(readBuffer[i]<16) printf("0");
-        printf("%X", readBuffer[i]);
-        printf(":");
-      }
-      printf("\n");
-#endif
       if(0L == readBuffer){
-        PN5180DEBUG("getInventoryMultiple: ERROR in readData!");
+        PN5180DEBUG(F("ERROR in readData!"));
+        PN5180DEBUG_PRINTLN();
+		PN5180DEBUG_EXIT;
         return ISO15693_EC_UNKNOWN_ERROR;
       }
+#ifdef DEBUG
+      PN5180DEBUG(F("readBuffer="));
+      for(int i=0; i<len+1; i++){
+        PN5180DEBUG(formatHex(readBuffer[i]));
+        if (i<len-2) PN5180DEBUG(" ");
+      }
+      PN5180DEBUG_PRINTLN();
+#endif
 
       // Record raw UID data                                       // 10. Record all data to Inventory struct
       for (int i=0; i<8; i++) {
@@ -167,8 +184,10 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
       *numCard = *numCard + 1;
 
 #ifdef DEBUG
-      printf("getInventoryMultiple: Response flags: 0x%X, Data Storage Format ID: 0x%X\n", readBuffer[0], readBuffer[1]);
-      printf("numCard=%d\n", *numCard);
+      PN5180DEBUG_PRINTF("getInventoryMultiple: Response flags: 0x%X, Data Storage Format ID: 0x%X", readBuffer[0], readBuffer[1]);
+      PN5180DEBUG_PRINTLN();
+      PN5180DEBUG_PRINTF("numCard=%d\n", *numCard);
+      PN5180DEBUG_PRINTLN();
 #endif
     }
     
@@ -180,6 +199,7 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
   }
   setRF_off();                                                     // 16. Switch off RF field
   setupRF();                                                       // 1. 2. Load ISO15693 config, RF on
+  PN5180DEBUG_EXIT;
   return ISO15693_EC_OK;
 }
 
@@ -221,16 +241,12 @@ ISO15693ErrorCode PN5180ISO15693::readSingleBlock(const uint8_t *uid, uint8_t bl
   }
 
 #ifdef DEBUG
-  PN5180DEBUG("Read Single Block #");
-  PN5180DEBUG(blockNo);
-  PN5180DEBUG(", size=");
-  PN5180DEBUG(blockSize);
-  PN5180DEBUG(": ");
+  PN5180DEBUG_PRINTF("Read Single Block #%d, size=%d:", blockNo, blockSize);
   for (int i=0; i<sizeof(readSingleBlock); i++) {
     PN5180DEBUG(" ");
     PN5180DEBUG(formatHex(readSingleBlock[i]));
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
 
   uint8_t *resultPtr;
@@ -258,7 +274,7 @@ ISO15693ErrorCode PN5180ISO15693::readSingleBlock(const uint8_t *uid, uint8_t bl
     }
     else PN5180DEBUG(".");
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
 
   return ISO15693_EC_OK;
@@ -321,7 +337,7 @@ ISO15693ErrorCode PN5180ISO15693::writeSingleBlock(const uint8_t *uid, uint8_t b
     PN5180DEBUG(" ");
     PN5180DEBUG(formatHex(writeCmd[i]));
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
 
   uint8_t *resultPtr;
@@ -416,7 +432,7 @@ ISO15693ErrorCode PN5180ISO15693::readMultipleBlock(const uint8_t *uid, uint8_t 
     }
     else PN5180DEBUG(".");
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
 
   return ISO15693_EC_OK;
@@ -480,7 +496,7 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
     PN5180DEBUG(" ");
     PN5180DEBUG(formatHex(sysInfo[i]));
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
 
   uint8_t *readBuffer;
@@ -499,19 +515,17 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
     PN5180DEBUG(formatHex(readBuffer[9-i]));  // UID has LSB first!
     if (i<2) PN5180DEBUG(":");
   }
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 #endif
   
   uint8_t *p = &readBuffer[10];
 
   uint8_t infoFlags = readBuffer[1];
   if (infoFlags & 0x01) { // DSFID flag
-#ifdef DEBUG
     uint8_t dsfid = *p++;
-#endif
     PN5180DEBUG("DSFID=");  // Data storage format identifier
     PN5180DEBUG(formatHex(dsfid));
-    PN5180DEBUG("\n");
+    PN5180DEBUG_PRINTLN();
   }
 #ifdef DEBUG
   else PN5180DEBUG(F("No DSFID\n"));  
@@ -538,7 +552,7 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
       case 12: PN5180DEBUG(F("Airline bags")); break;
       default: PN5180DEBUG(F("Unknown")); break;
     }
-    PN5180DEBUG("\n");
+    PN5180DEBUG_PRINTLN();
   }
 #ifdef DEBUG
   else PN5180DEBUG(F("No AFI\n"));
@@ -558,19 +572,17 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
     PN5180DEBUG(*blockSize);
     PN5180DEBUG(" NumBlocks=");
     PN5180DEBUG(*numBlocks);
-    PN5180DEBUG("\n");
+    PN5180DEBUG_PRINTLN();
   }
 #ifdef DEBUG
   else PN5180DEBUG(F("No VICC memory size\n"));
 #endif
    
   if (infoFlags & 0x08) { // IC reference
-#ifdef DEBUG
     uint8_t iRef = *p++;
-#endif
     PN5180DEBUG("IC Ref=");
     PN5180DEBUG(formatHex(iRef));
-    PN5180DEBUG("\n");
+    PN5180DEBUG_PRINTLN();
   }
 #ifdef DEBUG
   else PN5180DEBUG(F("No IC ref\n"));
@@ -748,7 +760,7 @@ ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(const uint8_t *cmd, uint8
   
   PN5180DEBUG(", len=");
   PN5180DEBUG(len);
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
 
  *resultPtr = readData(len);
   if (0L == *resultPtr) {
@@ -780,7 +792,7 @@ ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(const uint8_t *cmd, uint8
     PN5180DEBUG(formatHex(errorCode));
     PN5180DEBUG(" - ");
     PN5180DEBUG(strerror((ISO15693ErrorCode)errorCode));
-    PN5180DEBUG("\n");
+    PN5180DEBUG_PRINTLN();
 
     if (errorCode >= 0xA0) { // custom command error codes
       return ISO15693_EC_CUSTOM_CMD_ERROR;
@@ -820,7 +832,7 @@ bool PN5180ISO15693::setupRF() {
 const char *PN5180ISO15693::strerror(ISO15693ErrorCode code) {
   PN5180DEBUG(("ISO15693ErrorCode="));
   PN5180DEBUG(code);
-  PN5180DEBUG("\n");
+  PN5180DEBUG_PRINTLN();
   
   switch (code) {
     case EC_NO_CARD: return ("No card detected!");
