@@ -44,10 +44,10 @@ PN5180::PN5180(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, SPIClass& spi) :
   PN5180_NSS(SSpin),
   PN5180_BUSY(BUSYpin),
   PN5180_RST(RSTpin),
-  PN5180_MOSI(-1),
+  PN5180_SPI(spi),
+  PN5180_SCK(-1), 
   PN5180_MISO(-1),
-  PN5180_SCK(-1),
-  PN5180_SPI(spi)
+  PN5180_MOSI(-1)
 {
   /*
    * 11.4.1 Physical Host Interface
