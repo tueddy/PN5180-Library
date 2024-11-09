@@ -23,20 +23,31 @@
 #include "Debug.h"
 
 // PN5180 1-Byte Direct Commands
-// see 11.4.3.3 Host Interface Command List
-#define PN5180_WRITE_REGISTER           (0x00)
-#define PN5180_WRITE_REGISTER_OR_MASK   (0x01)
-#define PN5180_WRITE_REGISTER_AND_MASK  (0x02)
-#define PN5180_READ_REGISTER            (0x04)
-#define PN5180_WRITE_EEPROM             (0x06)
-#define PN5180_READ_EEPROM              (0x07)
-#define PN5180_SEND_DATA                (0x09)
-#define PN5180_READ_DATA                (0x0A)
-#define PN5180_SWITCH_MODE              (0x0B)
-#define PN5180_MIFARE_AUTHENTICATE      (0x0C)
-#define PN5180_LOAD_RF_CONFIG           (0x11)
-#define PN5180_RF_ON                    (0x16)
-#define PN5180_RF_OFF                   (0x17)
+// see 11.4.3.3 Host Interface Command List (https://www.nxp.com/docs/en/data-sheet/PN5180A0XX_C3_C4.pdf, page 20)
+#define PN5180_WRITE_REGISTER                       (0x00)  // Write one 32bit register value
+#define PN5180_WRITE_REGISTER_OR_MASK               (0x01)  // Sets one 32bit register value using a 32 bit OR mask
+#define PN5180_WRITE_REGISTER_AND_MASK              (0x02)  // Sets one 32bit register value using a 32 bit AND mask
+//#define PN5180_WRITE_REGISTER_MULTIPLE              (0x03)  // Processes an array of register addresses in random order and performs the defined action on these addresses.
+#define PN5180_READ_REGISTER                        (0x04)  // Reads one 32bit register value
+//#define PN5180_READ_REGISTER_MULTIPLE               (0x05)  // Reads from an array of max.18 register addresses in random order
+#define PN5180_WRITE_EEPROM                         (0x06)  // Processes an array of EEPROM addresses in random order and writes the value to these addresses
+#define PN5180_READ_EEPROM                          (0x07)  // Processes an array of EEPROM addresses from a start address and reads the values from these addresses
+//#define PN5180_WRITE_TX_DATA                        (0x08)  // Write data into the transmission buffer
+#define PN5180_SEND_DATA                            (0x09)  // Write data into the transmission buffer, the START_SEND bit is automatically set
+#define PN5180_READ_DATA                            (0x0A)  // Read data from reception buffer, after successful reception
+#define PN5180_SWITCH_MODE                          (0x0B)  // Switch the mode. It is only possible to switch from NormalMode to standby, LPCD or Autocoll
+#define PN5180_MIFARE_AUTHENTICATE                  (0x0C)  // Perform a MIFARE Classic Authentication on an activated card
+//#define PN5180_EPC_INVENTORY                        (0x0D)  // Perform an inventory of ISO18000-3M3 tags
+//#define PN5180_EPC_RESUME_INVENTORY                 (0x0E)  // Resume the inventory algorithm in case it is paused
+//#define PN5180_EPC_RETRIEVE_INVENTORY_RESULT_SIZE   (0x0F)  // Retrieve the size of the inventory result
+//#define PN5180_EPC_RETRIEVE_INVENTORY_RESULT        (0x10)  // Retrieve the result of a preceding EPC_INVENTORY or EPC_RESUME_INVENTORY instruction
+#define PN5180_LOAD_RF_CONFIG                       (0x11)  // Load the RF configuration from EEPROM into the configuration registers
+//#define UPDATE_RF_CONFIG                            (0x12)  // Update the RF configuration within EEPROM.
+//#define RETRIEVE_RF_CONFIG_SIZE                     (0x13)  // Retrieve the number of registers for a selected RF configuration
+//#define RETRIEVE_RF_CONFIG                          (0x14)  // Read out an RF configuration. The register address-value-pairs are available in the response
+//#define RFU                                         (0x15) 	// RFU (reserved for future use)
+#define PN5180_RF_ON                                (0x16)  // Switch on the RF Field
+#define PN5180_RF_OFF                               (0x17)  // Switch off the RF Field
 
 uint8_t PN5180::readBufferStatic16[16];
 
