@@ -143,8 +143,8 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
     PN5180DEBUG(F(": "));
     uint16_t len = (uint16_t)(rxStatus & 0x000001ff);
     if((rxStatus >> 18) & 0x01 && *numCol < maxTags){              // 7+ Determine if a collision occurred
-      if(maskLen > 0) collision[*numCol] = collision[0] | (slot << (maskLen * 2));
-      else collision[*numCol] = slot << (maskLen * 2); // Yes, store position of collision
+      if(maskLen > 0) collision[*numCol] = collision[0] | (slot << (maskLen * 4));
+      else collision[*numCol] = slot << (maskLen * 4); // Yes, store position of collision
       *numCol = *numCol + 1;
 #ifdef DEBUG
       PN5180DEBUG_PRINTF("Collision detected for UIDs matching %X starting at LSB", collision[*numCol-1]);
