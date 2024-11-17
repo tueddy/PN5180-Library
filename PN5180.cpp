@@ -608,10 +608,10 @@ int16_t PN5180::mifareAuthenticate(uint8_t blockNo, const uint8_t *key, uint8_t 
     cmdBuffer[9+i] = uid[i];
   }
 
-  bool retval = transceiveCommand(cmdBuffer, 13, rcvBuffer, 1);
-
-  if (!retval){
-    PN5180ERROR(F("sending command failed!"));
+  //bool retval = transceiveCommand(cmdBuffer, 13, rcvBuffer, 1);
+  if (!transceiveCommand(cmdBuffer, 13, rcvBuffer, 1)) {
+    PN5180ERROR(F("mifareAuthenticate() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
     return -3;
   }
   
@@ -675,17 +675,36 @@ bool PN5180::setRF_on() {
     return false;
   }
 
-  unsigned long startedWaiting = millis();
-  
+  //unsigned long startedWaiting = millis();
   PN5180DEBUG_PRINTF(F("wait for RF field to set up (max %d ms)"), SETRF_ON_TIMEOUT);
   PN5180DEBUG_OFF;
-  while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
-    if (millis() - startedWaiting > SETRF_ON_TIMEOUT) {
+  //while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
+  //  if (millis() - startedWaiting > SETRF_ON_TIMEOUT) {
+  //    PN5180DEBUG_ON;
+  //    PN5180ERROR(F("setRF_on() timeout waiting for TX_RFON_IRQ_STAT"));
+  //    PN5180DEBUG_EXIT;
+  //    return false;
+  //  }
+  //};
+  unsigned long startedWaiting = millis();
+  while (1) {   // wait for RF field to set up
+    uint32_t irqStatus;
+    if (!readRegister(IRQ_STATUS, &irqStatus)) {
       PN5180DEBUG_ON;
-      PN5180ERROR(F("setRF_on() timeout waiting for TX_RFON_IRQ_STAT"));
+      PN5180ERROR(F("setRF_on() failed at readRegister()"));
       PN5180DEBUG_EXIT;
       return false;
     }
+    if (0 != (TX_RFON_IRQ_STAT & irqStatus)) {
+      break;
+    }
+    if (millis() - startedWaiting > SETRF_ON_TIMEOUT) {
+      PN5180DEBUG_ON;
+      PN5180ERROR(F("setRF_on() timeout failed waiting for TX_RFON_IRQ_STAT"));
+      PN5180DEBUG_EXIT;
+      return false; 
+    }
+	delay(1);
   };
   PN5180DEBUG_ON;
   
@@ -952,7 +971,7 @@ bool PN5180::clearIRQStatus(uint32_t irqMask) {
   PN5180DEBUG_PRINTLN(F("Clear IRQ-Status with mask"));
 
   //bool ret = writeRegister(IRQ_CLEAR, irqMask);
-  if (writeRegister(IRQ_CLEAR, irqMask)) {
+  if (!writeRegister(IRQ_CLEAR, irqMask)) {
     PN5180ERROR(F("clearIRQStatus() failed at writeRegister()"));
     PN5180DEBUG_EXIT;
     return false;
