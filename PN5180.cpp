@@ -687,25 +687,22 @@ bool PN5180::setRF_on() {
   //  }
   //};
   unsigned long startedWaiting = millis();
-  while (1) {   // wait for RF field to set up
-    uint32_t irqStatus;
+  uint32_t irqStatus;
+  while (1) {   // wait for RF field to shut down
     if (!readRegister(IRQ_STATUS, &irqStatus)) {
       PN5180DEBUG_ON;
-      PN5180ERROR(F("setRF_on() failed at readRegister()"));
+      PN5180ERROR(F("setRF_off() failed at readRegister()"));
       PN5180DEBUG_EXIT;
       return false;
     }
-    if (0 != (TX_RFON_IRQ_STAT & irqStatus)) {
-      break;
-    }
+	if (0 != (TX_RFON_IRQ_STAT & irqStatus)) break;
     if (millis() - startedWaiting > SETRF_ON_TIMEOUT) {
       PN5180DEBUG_ON;
-      PN5180ERROR(F("setRF_on() timeout failed waiting for TX_RFON_IRQ_STAT"));
+      PN5180ERROR(F("setRF_on() timeout failed waiting for SETRF_ON_TIMEOUT"));
       PN5180DEBUG_EXIT;
       return false; 
     }
-	delay(1);
-  };
+  }
   PN5180DEBUG_ON;
   
   //   clearIRQStatus(TX_RFON_IRQ_STAT);
@@ -738,15 +735,22 @@ bool PN5180::setRF_off() {
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_OFF;
   unsigned long startedWaiting = millis();
-  while (0 == (TX_RFOFF_IRQ_STAT & getIRQStatus())) {   // wait for RF field to shut down
+  uint32_t irqStatus;
+  while (1) {   // wait for RF field to shut down
+    if (!readRegister(IRQ_STATUS, &irqStatus)) {
+      PN5180DEBUG_ON;
+      PN5180ERROR(F("setRF_off() failed at readRegister()"));
+      PN5180DEBUG_EXIT;
+      return false;
+    }
+	if (0 != (TX_RFOFF_IRQ_STAT & irqStatus)) break;
     if (millis() - startedWaiting > SETRF_OFF_TIMEOUT) {
       PN5180DEBUG_ON;
       PN5180ERROR(F("setRF_off() timeout failed waiting for TX_RFOFF_IRQ_STAT"));
       PN5180DEBUG_EXIT;
       return false; 
     }
-  };
-  PN5180DEBUG_ON;
+  }
 
   //   clearIRQStatus(TX_RFOFF_IRQ_STAT);
   if (!clearIRQStatus(TX_RFOFF_IRQ_STAT)) {
