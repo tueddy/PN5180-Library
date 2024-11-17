@@ -50,6 +50,9 @@
 #define PN5180_RF_ON                                (0x16)  // Switch on the RF Field
 #define PN5180_RF_OFF                               (0x17)  // Switch off the RF Field
 
+#define SETRF_ON_TIMEOUT	(500)
+#define SETRF_OFF_TIMEOUT	(500)
+
 uint8_t PN5180::readBufferStatic16[16];
 
 PN5180::PN5180(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, SPIClass& spi) :
@@ -674,10 +677,10 @@ bool PN5180::setRF_on() {
 
   unsigned long startedWaiting = millis();
   
-  PN5180DEBUG_PRINTLN(F("wait for RF field to set up (max 500ms)"));
+  PN5180DEBUG_PRINTF(F("wait for RF field to set up (max %d ms)"), SETRF_ON_TIMEOUT);
   PN5180DEBUG_OFF;
   while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
-    if (millis() - startedWaiting > 500) {
+    if (millis() - startedWaiting > SETRF_ON_TIMEOUT) {
       PN5180DEBUG_ON;
       PN5180ERROR(F("setRF_on() timeout waiting for TX_RFON_IRQ_STAT"));
       PN5180DEBUG_EXIT;
@@ -715,10 +718,10 @@ bool PN5180::setRF_off() {
   }
 
   unsigned long startedWaiting = millis();
-  PN5180DEBUG_PRINTLN(F("wait for RF field to shut down (max 500ms)"));
+  PN5180DEBUG_PRINTF(F("wait for RF field to shut down (max %d ms)"), SETRF_OFF_TIMEOUT);
   PN5180DEBUG_OFF;
   while (0 == (TX_RFOFF_IRQ_STAT & getIRQStatus())) {   // wait for RF field to shut down
-    if (millis() - startedWaiting > 500) {
+    if (millis() - startedWaiting > SETRF_OFF_TIMEOUT) {
       PN5180DEBUG_ON;
       PN5180ERROR(F("setRF_off() timeout waiting for TX_RFOFF_IRQ_STAT"));
       PN5180DEBUG_EXIT;
