@@ -48,7 +48,7 @@
 // (See enum ISO15693ErrorCode in PN5180ISO15693.h)
 
 // ISO15693-3 (1999) Commands (http://olmicrowaves.com/menucontents/designsupport/rfid/ISO15693-3.pdf, pages 21)
-#define ISO15693_CMD_IVENTORY							(0x01)
+#define ISO15693_CMD_INVENTORY							(0x01)
 #define ISO15693_CMD_STAYQUIET							(0x02)
 // 0x03 to 0x1F RFU
 #define ISO15693_CMD_READSINGLEBLOCK					(0x20)
@@ -77,7 +77,7 @@ PN5180ISO15693::PN5180ISO15693(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, S
  *
  */
 ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
-  uint8_t cmd = ISO15693_CMD_IVENTORY;
+  uint8_t cmd = ISO15693_CMD_INVENTORY;
   // flags = 1 slot, only one card, no AFI field present, inventory flag + high data rate
   uint8_t flags = ISO15693_REQ_FLAG_NBSLOTS | ISO15693_REQ_FLAG_INVENTORY | ISO15693_REQ_FLAG_DATARATE;
   uint8_t maskLen = 0x00;
@@ -153,7 +153,7 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_ENTER;
   
-  uint8_t cmd = ISO15693_CMD_IVENTORY;
+  uint8_t cmd = ISO15693_CMD_INVENTORY;
   // flags = 16 slots: upto 16 cards, no AFI field present, inventory flag + high data rate
   uint8_t flags = ISO15693_REQ_FLAG_INVENTORY | ISO15693_REQ_FLAG_DATARATE;
   uint8_t maskLen = 0;
