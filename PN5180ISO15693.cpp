@@ -17,6 +17,7 @@
 // Lesser General Public License for more details.
 //
 //#define DEBUG 1
+#define DEBUG_ERROR 1
 
 #include <Arduino.h>
 #include "PN5180ISO15693.h"
@@ -95,7 +96,8 @@ ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
   uint8_t *readBuffer;
   ISO15693ErrorCode rc = issueISO15693Command(inventory, sizeof(inventory), &readBuffer);
   if (ISO15693_EC_OK != rc) {
-    PN5180DEBUG(F("getInventory() failed at issueISO15693Command()"));
+    PN5180ERROR(F("getInventory() failed at issueISO15693Command()"));
+    PN5180DEBUG_EXIT;
     return rc;
   }
   for (int i=0; i<8; i++) {
@@ -136,7 +138,13 @@ ISO15693ErrorCode PN5180ISO15693::getInventoryMultiple(uint8_t *uid, uint8_t max
   uint16_t collision[maxTags];
   *numCard = 0;
   uint8_t numCol = 0;
-  inventoryPoll(uid, maxTags, numCard, &numCol, collision);
+
+  if (ISO15693_EC_OK != inventoryPoll(uid, maxTags, numCard, &numCol, collision)) {
+    PN5180ERROR(F("getInventoryMultiple() failed at first inventoryPoll()"));
+    PN5180DEBUG_EXIT;
+    return ISO15693_EC_UNKNOWN_ERROR;
+  }
+
   PN5180DEBUG_PRINTF("*** Number of collisions=%d", numCol);
   PN5180DEBUG_PRINTLN();
 
