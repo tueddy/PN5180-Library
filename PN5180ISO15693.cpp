@@ -91,8 +91,9 @@ ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
   uint8_t flags = ISO15693_REQ_FLAG_NBSLOTS | ISO15693_REQ_FLAG_INVENTORY | ISO15693_REQ_FLAG_DATARATE;
   uint8_t maskLen = 0x00;
   uint8_t inventory[] = { cmd, flags, maskLen };
-  PN5180DEBUG(F("Get Inventory...\n"));
 
+  PN5180DEBUG(F("Get Inventory..."));
+  PN5180DEBUG_PRINTLN();
   for (int i=0; i<8; i++) {
     uid[i] = 0;  
   }
@@ -108,18 +109,15 @@ ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
     uid[i] = readBuffer[2+i];
   }
 
+#ifdef DEBUG
   PN5180DEBUG(F("Response flags: "));
   PN5180DEBUG(formatHex(readBuffer[0]));
   PN5180DEBUG(F(", Data Storage Format ID: "));
   PN5180DEBUG(formatHex(readBuffer[1]));
   PN5180DEBUG(F(", UID: "));
-  
-#ifdef DEBUG
   for (int i=0; i<8; i++) {
-    uid[i] = readBuffer[2+i];
     PN5180DEBUG(formatHex(uid[7-i])); // LSB comes first
     if (i<2) PN5180DEBUG(":");
-  }
   PN5180DEBUG_PRINTLN();
 #endif
 
@@ -151,7 +149,7 @@ ISO15693ErrorCode PN5180ISO15693::getInventoryMultiple(uint8_t *uid, uint8_t max
     return ISO15693_EC_UNKNOWN_ERROR;
   }
 
-  PN5180DEBUG_PRINTF("*** Number of collisions=%d", numCol);
+  PN5180DEBUG_PRINTF("Number of collisions=%d", numCol);
   PN5180DEBUG_PRINTLN();
 
   while(numCol){                                                 // 5+ Continue until no collisions detected
@@ -178,14 +176,12 @@ ISO15693ErrorCode PN5180ISO15693::getInventoryMultiple(uint8_t *uid, uint8_t max
   return ISO15693_EC_OK;
 }
 
+// 4. Send inventory request with mask length and mask value.
 ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, uint8_t *numCard, uint8_t *numCol, uint16_t *collision){
   PN5180DEBUG_PRINTF("PN5180ISO15693::inventoryPoll(maxTags=%d, numCard=%d, numCol=%d)", maxTags, *numCard, *numCol);
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_ENTER;
   
-  uint8_t cmd = ISO15693_CMD_INVENTORY;
-  // flags = 16 slots: upto 16 cards, no AFI field present, inventory flag + high data rate
-  uint8_t flags = ISO15693_REQ_FLAG_INVENTORY | ISO15693_REQ_FLAG_DATARATE;
   uint8_t maskLen = 0;
   if(*numCol > 0){
     uint32_t mask = collision[0];
@@ -195,29 +191,37 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
     }while(mask > 0);
   } 
   uint8_t *p = (uint8_t*)&(collision[0]);
-
-  const uint8_t inventory[7] = { flags, cmd, uint8_t(maskLen*4), p[0], p[1], p[2], p[3] };
+  // flags = 16 slots, up to 16 cards, no AFI field present, inventory flag + high data rate
+  uint8_t flags = ISO15693_REQ_FLAG_DATARATE | ISO15693_REQ_FLAG_INVENTORY;
+  const uint8_t inventory[7] = { flags, ISO15693_CMD_INVENTORY, uint8_t(maskLen*4), p[0], p[1], p[2], p[3] };
+  // TODO: can p[] containing the collision mask bytes be more than 4 bytes long?
+  // TODO: Why is collision[] initialized to a length of maxTags, but only 4 p[] values in this call?
   uint8_t cmdLen = 3 + (maskLen/2) + (maskLen%2);
 #ifdef DEBUG
   PN5180DEBUG_PRINTF(F("mask=%d, maskLen=%d, cmdLen=%d"), p[0], maskLen, cmdLen);
   PN5180DEBUG_PRINTLN();
 #endif
 
-  //   clearIRQStatus(0x000FFFFF);                                      // 3. Clear all IRQ_STATUS flags
+  // 3. Clear all IRQ_STATUS flags
+  //   clearIRQStatus(0x000FFFFF);                                      
   if (!clearIRQStatus(0x000FFFFF)) {
     PN5180ERROR(F("inventoryPoll() failed at step 3. clearIRQStatus()"));
     PN5180DEBUG_EXIT;
     return ISO15693_EC_UNKNOWN_ERROR;
   }
 
-  //   sendData(inventory, cmdLen, 0);                                  // 4. 5. 6. Idle/StopCom Command, Transceive Command, Inventory command
+  uint8_t *readBuffer;
+
+  // 4. 5. 6. Idle/StopCom Command, Transceive Command, Inventory command
+  //   sendData(inventory, cmdLen, 0);                                  
   if (!sendData(inventory, cmdLen, 0)) {
     PN5180ERROR(F("inventoryPoll() failed at step 4.5.6. sendData()"));
     PN5180DEBUG_EXIT;
     return ISO15693_EC_UNKNOWN_ERROR;
   }
   
-  for(uint8_t slot=0; slot<16; slot++){                                // 7. Loop to check 16 time slots for data
+  // 7. Loop to check 16 time slots for data
+  for(uint8_t slot=0; slot<16; slot++){
     uint32_t rxStatus;
     uint32_t irqStatus = getIRQStatus();
 
@@ -227,6 +231,7 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
       PN5180DEBUG_EXIT;
       return ISO15693_EC_UNKNOWN_ERROR;
     }
+
     PN5180DEBUG(F("slot="));
     PN5180DEBUG(formatHex(slot));
     PN5180DEBUG(F(": "));
@@ -235,9 +240,10 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
     PN5180DEBUG(F(", RX_STATUS="));
     PN5180DEBUG(formatHex(rxStatus));
     PN5180DEBUG(F(": "));
-	
+
+    // 7+ Determine if a collision occurred
     uint16_t len = (uint16_t)(rxStatus & 0x000001ff);
-    if((rxStatus >> 18) & 0x01 && *numCol < maxTags){              // 7+ Determine if a collision occurred
+    if((rxStatus >> 18) & 0x01 && *numCol < maxTags){
       if(maskLen > 0) collision[*numCol] = collision[0] | (slot << (maskLen * 4));
       else collision[*numCol] = slot << (maskLen * 4); // Yes, store position of collision
       *numCol = *numCol + 1;
@@ -246,31 +252,37 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
       PN5180DEBUG_PRINTLN();
 #endif
     }
-    else if(!(irqStatus & RX_IRQ_STAT) && !len){                   // 8. Check if a card has responded
+    else
+		// 8. Check if a card has responded
+		if(!(irqStatus & RX_IRQ_STAT) && !len){                   
       PN5180DEBUG(F("No card in this time slot."));
       PN5180DEBUG_PRINTLN();
     }
     else{
 #ifdef DEBUG
-      PN5180DEBUG_PRINTF("slot=%d, irqStatus: %ld, RX_STATUS: %ld, Response length=%d", slot, irqStatus, rxStatus, len);
+      PN5180DEBUG_PRINTF("slot=%d, irqStatus: %ld, RX_STATUS: %ld, Response length=%d, ", slot, irqStatus, rxStatus, len);
 #endif
       uint8_t *readBuffer;
-      readBuffer = readData(len+1);                                // 9. Read reception buffer
+
+      // 9. Read reception buffer
+      readBuffer = readData(len+1);
       if(0L == readBuffer){
         PN5180ERROR(F("inventoryPoll() failed at step 9. readBuffer() for slot %d"), slot);
 		PN5180DEBUG_EXIT;
         return ISO15693_EC_UNKNOWN_ERROR;
       }
+
 #ifdef DEBUG
       PN5180DEBUG(F("readBuffer="));
       for(int i=0; i<len+1; i++){
         PN5180DEBUG(formatHex(readBuffer[i]));
-        if (i<len-2) PN5180DEBUG(" ");
+        if (i<len) PN5180DEBUG(" ");
       }
       PN5180DEBUG_PRINTLN();
 #endif
 
-      // Record raw UID data                                       // 10. Record all data to Inventory struct
+      // 10. Record all data to Inventory struct
+      // Record raw UID data                                       
       for (int i=0; i<8; i++) {
         uint8_t startAddr = (*numCard * 8) + i;
         uid[startAddr] = readBuffer[2+i];
@@ -278,27 +290,30 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
       *numCard = *numCard + 1;
 
 #ifdef DEBUG
-      PN5180DEBUG_PRINTF("getInventoryMultiple: Response flags: 0x%X, Data Storage Format ID: 0x%X", readBuffer[0], readBuffer[1]);
-      PN5180DEBUG_PRINTLN();
-      PN5180DEBUG_PRINTF("numCard=%d\n", *numCard);
+      //PN5180DEBUG_PRINTF("getInventoryMultiple: Response flags: 0x%X, Data Storage Format ID: 0x%X", readBuffer[0], readBuffer[1]);
+      //PN5180DEBUG_PRINTLN();
+      PN5180DEBUG_PRINTF("numCard=%d", *numCard);
       PN5180DEBUG_PRINTLN();
 #endif
     }
     
     if(slot+1 < 16){ // If we have more cards to poll for...
-      //   writeRegisterWithAndMask(TX_CONFIG, 0xFFFFFB3F);             // 11. Next SEND_DATA will only include EOF
+      // 11. Next SEND_DATA will only include EOF
+      //   writeRegisterWithAndMask(TX_CONFIG, 0xFFFFFB3F);             
       if (!writeRegisterWithAndMask(TX_CONFIG, 0xFFFFFB3F)) {
         PN5180ERROR(F("inventoryPoll() failed at step 11. writeRegisterWithAndMask() for slot %d"), slot);
         PN5180DEBUG_EXIT;
         return ISO15693_EC_UNKNOWN_ERROR;
       }
-      //   clearIRQStatus(0x000FFFFF);                                  // 14. Clear all IRQ_STATUS flags
+	  delay(5);
+	  // 14. Clear all IRQ_STATUS flags
       if (!clearIRQStatus(0x000FFFFF)) {
         PN5180ERROR(F("inventoryPoll() failed at step 14. clearIRQStatus() for slot %d"), slot);
         PN5180DEBUG_EXIT;
         return ISO15693_EC_UNKNOWN_ERROR;
       }
-      //   sendData(inventory, 0, 0);                                   // 12. 13. 15. Idle/StopCom Command, Transceive Command, Send EOF
+	  // 12. 13. 15. Idle/StopCom Command, Transceive Command, Send EOF
+      //   sendData(inventory, 0, 0);                                 
       if (!sendData(inventory, 0, 0)) {
         PN5180ERROR(F("inventoryPoll() failed at step 12.13.15. clearIRQStatus() for slot %d"), slot);
         PN5180DEBUG_EXIT;
@@ -306,13 +321,16 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
       }
     }
   }
-  //   setRF_off();                                                     // 16. Switch off RF field
+
+  // 16. Switch off RF field
+  //   setRF_off();                                                     
   if (!setRF_off()) {
     PN5180ERROR(F("inventoryPoll() failed at step 16. setRF_off()"));
     PN5180DEBUG_EXIT;
     return ISO15693_EC_UNKNOWN_ERROR;
   }
-  //   setupRF();                                                       // 1. 2. Load ISO15693 config, RF on
+
+  // 1. 2. Load ISO15693 config, RF on
   if (!setupRF()) {
     PN5180ERROR(F("inventoryPoll() failed at step 1.2. setupRF()"));
     PN5180DEBUG_EXIT;
@@ -332,21 +350,21 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
  *    SOF, Resp.Flags, ErrorCode, CRC16, EOF
  *
  *     Response Flags:
-  *    xxxx.3xx0
-  *         |||\_ Error flag: 0=no error, 1=error detected, see error field
-  *         \____ Extension flag: 0=no extension, 1=protocol format is extended
-  *
-  *  If Error flag is set, the following error codes are defined:
-  *    01 = The command is not supported, i.e. the request code is not recognized.
-  *    02 = The command is not recognized, i.e. a format error occurred.
-  *    03 = The option is not supported.
-  *    0F = Unknown error.
-  *    10 = The specific block is not available.
-  *    11 = The specific block is already locked and cannot be locked again.
-  *    12 = The specific block is locked and cannot be changed.
-  *    13 = The specific block was not successfully programmed.
-  *    14 = The specific block was not successfully locked.
-  *    A0-DF = Custom command error codes
+ *    xxxx.3xx0
+ *         |||\_ Error flag: 0=no error, 1=error detected, see error field
+ *         \____ Extension flag: 0=no extension, 1=protocol format is extended
+ *
+ *  If Error flag is set, the following error codes are defined:
+ *    01 = The command is not supported, i.e. the request code is not recognized.
+ *    02 = The command is not recognized, i.e. a format error occurred.
+ *    03 = The option is not supported.
+ *    0F = Unknown error.
+ *    10 = The specific block is not available.
+ *    11 = The specific block is already locked and cannot be locked again.
+ *    12 = The specific block is locked and cannot be changed.
+ *    13 = The specific block was not successfully programmed.
+ *    14 = The specific block was not successfully locked.
+ *    A0-DF = Custom command error codes
  *
  *  when ERROR flag is NOT set:
  *    SOF, Flags, BlockData (len=blockLength), CRC16, EOF
@@ -858,7 +876,7 @@ ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(const uint8_t *cmd, uint8
   uint32_t irqR = getIRQStatus();
   if (0 == (irqR & RX_SOF_DET_IRQ_STAT)) {
     PN5180DEBUG("Didnt detect RX_SOF_DET_IRQ_STAT after sendData");
-	  return EC_NO_CARD;
+    return EC_NO_CARD;
   }
   
   unsigned long startedWaiting = millis();
@@ -871,7 +889,12 @@ ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(const uint8_t *cmd, uint8
   }
   
   uint32_t rxStatus;
-  readRegister(RX_STATUS, &rxStatus);
+  //   readRegister(RX_STATUS, &rxStatus);
+  if (!readRegister(RX_STATUS, &rxStatus)) {
+    PN5180ERROR(F("issueISO15693Command() failed at readRegister()"));
+    PN5180DEBUG_EXIT;
+    return ISO15693_EC_UNKNOWN_ERROR;
+  }
   
   PN5180DEBUG(F("RX-Status="));
   PN5180DEBUG(formatHex(rxStatus));
@@ -882,9 +905,9 @@ ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(const uint8_t *cmd, uint8
   PN5180DEBUG(len);
   PN5180DEBUG_PRINTLN();
 
- *resultPtr = readData(len);
+  *resultPtr = readData(len);
   if (0L == *resultPtr) {
-    PN5180DEBUG(F("*** ERROR in readData!\n"));
+    PN5180ERROR(F("issueISO15693Command() failed at readData()"));
     return ISO15693_EC_UNKNOWN_ERROR;
   }
   
