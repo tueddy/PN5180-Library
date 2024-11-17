@@ -204,7 +204,7 @@ bool PN5180::writeRegisterWithOrMask(uint8_t reg, uint32_t mask) {
 }
 
 /*
- * WRITE _REGISTER_AND_MASK - 0x02
+ * WRITE_REGISTER_AND_MASK - 0x02
  * This command modifies the content of a register using a logical AND operation. The
  * content of the register is read and a logical AND operation is performed with the provided
  * mask. The modified content is written back to the register.
@@ -282,8 +282,8 @@ bool PN5180::writeEEprom(uint8_t addr, const uint8_t *buffer, uint8_t len) {
   cmd[1] = addr;
   for (int i = 0; i < len; i++) cmd[2 + i] = buffer[i];
 
-  //  transceiveCommand(cmd, len + 2);
-  if (transceiveCommand(cmd, len + 2)) {
+  //   transceiveCommand(cmd, len + 2);
+  if (!transceiveCommand(cmd, len + 2)) {
     PN5180ERROR(F("writeEEprom() failed at transceiveCommand()"));
     PN5180DEBUG_EXIT;
     return false;
@@ -323,8 +323,8 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
 
   uint8_t cmd[] = { PN5180_READ_EEPROM, addr, uint8_t(len) };
 
-  //  transceiveCommand(cmd, sizeof(cmd), buffer, len);
-  if (transceiveCommand(cmd, sizeof(cmd), buffer, len)) {
+  //   transceiveCommand(cmd, sizeof(cmd), buffer, len);
+  if (!transceiveCommand(cmd, sizeof(cmd), buffer, len)) {
     PN5180ERROR(F("readEEprom() failed at transceiveCommand()"));
     PN5180DEBUG_EXIT;
     return false;
@@ -388,14 +388,14 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
   //}
   //   writeRegisterWithAndMask(SYSTEM_CONFIG, 0xfffffff8);  // Idle/StopCom Command
   if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xfffffff8)) {
-    PN5180ERROR(F("sendData() failed at writeRegisterWithAndMask()"));
+    PN5180ERROR(F("sendData() failed at writeRegisterWithAndMask() Idle/StopCom Command"));
     PN5180DEBUG_EXIT;
     return false;
   }
 
   //   writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003);   // Transceive Command
   if (!writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003)) {
-    PN5180ERROR(F("sendData() failed at writeRegisterWithOrMask()"));
+    PN5180ERROR(F("sendData() failed at writeRegisterWithOrMask() Transceive Command"));
     PN5180DEBUG_EXIT;
     return false;
   }
@@ -443,7 +443,7 @@ uint8_t * PN5180::readData(int len) {
   PN5180DEBUG_ENTER;
   
   if (len < 0 || len > 508) {
-    PN5180ERROR(F("readData() failed: Reading more than 508 bytes is not supported!"));
+    Serial.println(F("readData() failed: Reading more than 508 bytes is not supported!"));
     PN5180DEBUG_EXIT;
     return 0L;
   }
@@ -471,11 +471,11 @@ uint8_t * PN5180::readData(int len) {
     readBuffer = readBufferDynamic508;
   }
 
-  //  transceiveCommand(cmd, sizeof(cmd), readBuffer, len);
-  if (transceiveCommand(cmd, sizeof(cmd), readBuffer, len)) {
+  //   transceiveCommand(cmd, sizeof(cmd), readBuffer, len);
+  if (!transceiveCommand(cmd, sizeof(cmd), readBuffer, len)) {
     PN5180ERROR(F("readData() failed at transceiveCommand()"));
     PN5180DEBUG_EXIT;
-    return 0;
+    return 0L;
   }
 
 #ifdef DEBUG
@@ -503,8 +503,8 @@ bool PN5180::readData(int len, uint8_t *buffer) {
   uint8_t cmd[] = { PN5180_READ_DATA, 0x00 };
   
   //bool ret = transceiveCommand(cmd, sizeof(cmd), buffer, len);
-  if (transceiveCommand(cmd, sizeof(cmd), buffer, len)) {
-    PN5180ERROR(F("readData() failed at transceiveCommand()"));
+  if (!transceiveCommand(cmd, sizeof(cmd), buffer, len)) {
+    PN5180ERROR(F("sendData() failed at writeRegisterWithAndMask() Idle/StopCom Command"));
     PN5180DEBUG_EXIT;
     return false;
   }
@@ -648,7 +648,7 @@ bool PN5180::loadRFConfig(uint8_t txConf, uint8_t rxConf) {
   uint8_t cmd[] = { PN5180_LOAD_RF_CONFIG, txConf, rxConf };
 
   //  transceiveCommand(cmd, sizeof(cmd));
-  if (transceiveCommand(cmd, sizeof(cmd))) {
+  if (!transceiveCommand(cmd, sizeof(cmd))) {
     PN5180ERROR(F("loadRFConfig() failed at transceiveCommand()"));
     PN5180DEBUG_EXIT;
     return false;
@@ -664,7 +664,7 @@ bool PN5180::loadRFConfig(uint8_t txConf, uint8_t rxConf) {
  * set after the field is switched on.
  */
 bool PN5180::setRF_on() {
-  PN5180DEBUG_PRINTLN(F("Set RF ON"));
+  PN5180DEBUG_PRINTLN(F("PN5180::setRF_on()"));
   PN5180DEBUG_ENTER;
 
   //uint8_t cmd[] = { PN5180_RF_ON, 0x00 };
@@ -675,8 +675,8 @@ bool PN5180::setRF_on() {
     return false;
   }
 
-  //unsigned long startedWaiting = millis();
   PN5180DEBUG_PRINTF(F("wait for RF field to set up (max %d ms)"), SETRF_ON_TIMEOUT);
+  PN5180DEBUG_PRINTLN();
   PN5180DEBUG_OFF;
   //while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
   //  if (millis() - startedWaiting > SETRF_ON_TIMEOUT) {
@@ -708,8 +708,8 @@ bool PN5180::setRF_on() {
   };
   PN5180DEBUG_ON;
   
-  //  clearIRQStatus(TX_RFON_IRQ_STAT);
-  if (clearIRQStatus(TX_RFON_IRQ_STAT)) {
+  //   clearIRQStatus(TX_RFON_IRQ_STAT);
+  if (!clearIRQStatus(TX_RFON_IRQ_STAT)) {
     PN5180ERROR(F("setRF_on() failed at clearIRQStatus()"));
     PN5180DEBUG_EXIT;
     return false;
@@ -725,19 +725,17 @@ bool PN5180::setRF_on() {
  * is set after the field is switched off.
  */
 bool PN5180::setRF_off() {
-  PN5180DEBUG_PRINTLN(F("Set RF OFF"));
+  PN5180DEBUG_PRINTLN(F("PN5180::setRF_off()"));
   PN5180DEBUG_ENTER;
 
-  //uint8_t cmd[] { PN5180_RF_OFF, 0x00 };
-  //transceiveCommand(cmd, sizeof(cmd));
   if (!cmd_RfOff(0)) {
     PN5180ERROR(F("setRF_off() failed at cmd_RfOff()"));
     PN5180DEBUG_EXIT;
     return false;
   }
 
-  unsigned long startedWaiting = millis();
   PN5180DEBUG_PRINTF(F("wait for RF field to shut down (max %d ms)"), SETRF_OFF_TIMEOUT);
+  PN5180DEBUG_PRINTLN();
   PN5180DEBUG_OFF;
   while (0 == (TX_RFOFF_IRQ_STAT & getIRQStatus())) {   // wait for RF field to shut down
     if (millis() - startedWaiting > SETRF_OFF_TIMEOUT) {
@@ -747,11 +745,11 @@ bool PN5180::setRF_off() {
       return false; 
     }
   };
-  PN5180DEBUG_ON;  
-  
-  /// clearIRQStatus(TX_RFOFF_IRQ_STAT);
-  if (clearIRQStatus(TX_RFOFF_IRQ_STAT)) {
-    PN5180ERROR(F("setRF_off() failed at clearIRQStatus()"));
+  PN5180DEBUG_ON;
+
+  //   clearIRQStatus(TX_RFOFF_IRQ_STAT);
+  if (!clearIRQStatus(TX_RFOFF_IRQ_STAT)) {
+    PN5180ERROR(F("setRF_on() failed at clearIRQStatus()"));
     PN5180DEBUG_EXIT;
     return false;
   }
@@ -948,11 +946,11 @@ uint32_t PN5180::getIRQStatus() {
   PN5180DEBUG_PRINTLN(F("Read IRQ-Status register..."));
   uint32_t irqStatus;
 
-  //  readRegister(IRQ_STATUS, &irqStatus);
-  if (readRegister(IRQ_STATUS, &irqStatus)) {
+  //   readRegister(IRQ_STATUS, &irqStatus);
+  if (!readRegister(IRQ_STATUS, &irqStatus)) {
     PN5180ERROR(F("getIRQStatus() failed at readRegister()"));
     PN5180DEBUG_EXIT;
-    return false;
+    return 0L;
   }
 
   PN5180DEBUG(F("IRQ-Status=0x"));
@@ -981,13 +979,14 @@ bool PN5180::clearIRQStatus(uint32_t irqMask) {
   return true;
 }
 
-/*
- * Get TRANSCEIVE_STATE from RF_STATUS register
- */
 #ifdef DEBUG
 extern void showIRQStatus(uint32_t);
 #endif
 
+
+/*
+ * Get TRANSCEIVE_STATE from RF_STATUS register
+ */
 PN5180TransceiveStat PN5180::getTransceiveState() {
   PN5180DEBUG_PRINT(F("PN5180::getTransceiveState()"));
   PN5180DEBUG_PRINTLN();
@@ -1073,7 +1072,7 @@ bool PN5180::cmd_SendData(const uint8_t *data, int len, uint8_t validBits) {
   }
 
   if (!transceiveCommand(buffer, len+2)) {
-    PN5180ERROR(F("cmd_SendData() failed at transceiveCommand()"));
+    PN5180ERROR(F("sendData() failed at transceiveCommand()"));
     PN5180DEBUG_EXIT;
     return false;
   }
