@@ -17,6 +17,7 @@
 // Lesser General Public License for more details.
 //
 //#define DEBUG 1
+#define DEBUG_ERROR 1
 
 #include <Arduino.h>
 #include "PN5180ISO14443.h"
@@ -95,7 +96,7 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 
 	// Load standard TypeA protocol already done in reset()
 	if (!loadRFConfig(0x0, 0x80)) {
-		PN5180DEBUG_PRINTLN(F("*** ERROR: Load standard TypeA protocol failed!"));
+		PN5180ERROR(F("Load standard TypeA protocol failed!"));
 		PN5180DEBUG_EXIT;
 		return -1;
 	}
@@ -107,33 +108,33 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	
 	// OFF Crypto
 	if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xFFFFFFBF)) {
-		PN5180DEBUG_PRINTLN(F("*** ERROR: OFF Crypto failed!"));
+		PN5180ERROR(F("OFF Crypto failed!"));
 		PN5180DEBUG_EXIT;
 		return -1;
 	}
 	// clear RX CRC
 	if (!writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE)) {
-		PN5180DEBUG_PRINTLN(F("*** ERROR: Clear RX CRC failed!"));
+		PN5180ERROR(F("Clear RX CRC failed!"));
 		PN5180DEBUG_EXIT;
 		return -1;
 	}
 	// clear TX CRC
 	if (!writeRegisterWithAndMask(CRC_TX_CONFIG, 0xFFFFFFFE)) {
-		PN5180DEBUG_PRINTLN(F("*** ERROR: Clear TX CRC failed!"));
+		PN5180ERROR(F("Clear TX CRC failed!"));
 		PN5180DEBUG_EXIT;
 		return -1;
 	}
 
 	// set the PN5180 into IDLE state  
 	if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xFFFFFFF8)) {
-		PN5180DEBUG_PRINTLN(F("*** ERROR: set IDLE state failed!"));
+		PN5180ERROR(F("Set IDLE state failed!"));
 		PN5180DEBUG_EXIT;
 		return -1;
 	}
 		
 	// activate TRANSCEIVE routine  
 	if (!writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003)) {
-		PN5180DEBUG_PRINTLN(F("*** ERROR: Activates TRANSCEIVE routine failed!"));
+		PN5180ERROR(F("Activate TRANSCEIVE routine failed!"));
 		PN5180DEBUG_EXIT;
 		return -1;
 	}
@@ -141,7 +142,7 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	// wait for wait-transmit state
 	PN5180TransceiveStat transceiveState = getTransceiveState();
 	if (PN5180_TS_WaitTransmit != transceiveState) {
-		PN5180DEBUG_PRINTLN(F("*** ERROR: Transceiver not in state WaitTransmit!?"));
+		PN5180ERROR(F("Transceiver not in state WaitTransmit!?"));
 		PN5180DEBUG_EXIT;
 		return -1;
 	}
@@ -158,7 +159,7 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	//Send REQA/WUPA, 7 bits in last byte
 	cmd[0] = (kind == 0) ? 0x26 : 0x52;
 	if (!sendData(cmd, 1, 0x07)) {
-		PN5180DEBUG_PRINTLN(F("*** ERROR: Send REQA/WUPA failed!"));
+		PN5180ERROR(F("Send REQA/WUPA failed!"));
 		PN5180DEBUG_EXIT;
 		return 0;
 	}
@@ -168,7 +169,7 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 
 	// READ 2 bytes ATQA into  buffer
 	if (!readData(2, buffer)) {
-		PN5180DEBUG(F("*** ERROR: READ 2 bytes ATQA failed!\n"));
+		PN5180ERROR(F("READ 2 bytes ATQA failed!\n"));
 		PN5180DEBUG_EXIT;
 		return 0;
 	}
@@ -180,10 +181,10 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	while (PN5180_TS_WaitTransmit != getTransceiveState()) {   
 		if (millis() - startedWaiting > 200) {
 			PN5180DEBUG_ON;
-			PN5180DEBUG_PRINTLN(F("*** ERROR: timeout in PN5180_TS_WaitTransmit!"));
+			PN5180ERROR(F("Timeout in PN5180_TS_WaitTransmit!"));
 			PN5180DEBUG_EXIT;
 			return -1; 
-		}	
+		}
 	}
     PN5180DEBUG_ON;
 	
@@ -194,7 +195,7 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	cmd[0] = 0x93;
 	cmd[1] = 0x20;
 	if (!sendData(cmd, 2, 0x00)) {
-		PN5180DEBUG_PRINTLN(F("*** ERROR: Send Anti collision 1 failed!"));
+		PN5180ERROR(F("Send Anti collision 1 failed!"));
 		PN5180DEBUG_EXIT;
 		return -2;
 	}
@@ -204,13 +205,13 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 
 	uint8_t numBytes = rxBytesReceived();
 	if (numBytes != 5) {
-		PN5180DEBUG_PRINTLN(F("*** ERROR: Read 5 bytes sak failed!"));
+		PN5180ERROR(F("Read 5 bytes sak failed!"));
 		PN5180DEBUG_EXIT;
 		return -2;
 	};
 	// read 5 bytes sak, we will store at offset 2 for later usage
 	if (!readData(5, cmd+2)) {
-		Serial.println("Read 5 bytes failed!");
+		PN5180ERROR("Read 5 bytes failed!");
 		PN5180DEBUG_EXIT;
 		return -2;
 	}
@@ -220,11 +221,13 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	
 	//Enable RX CRC calculation
 	if (!writeRegisterWithOrMask(CRC_RX_CONFIG, 0x01)) {
+		PN5180ERROR("Enable RX CRC failed!");
 		PN5180DEBUG_EXIT;
 		return -2;
 	}
 	//Enable TX CRC calculation
 	if (!writeRegisterWithOrMask(CRC_TX_CONFIG, 0x01)) {
+		PN5180ERROR("Enable TX CRC failed!");
 		PN5180DEBUG_EXIT;
 		return -2;
 	}
@@ -239,6 +242,7 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	}
 	//Read 1 byte SAK into buffer[2]
 	if (!readData(1, buffer+2)) {
+		PN5180ERROR("Read 1 byte SAK into buffer failed!");
 		PN5180DEBUG_EXIT;
 		return -2;
 	}
@@ -258,11 +262,13 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 		for (int i = 0; i < 3; i++) buffer[3+i] = cmd[3 + i];
 		// Clear RX CRC
 		if (!writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE)) {
+			PN5180ERROR(F("Clear RX CRC Failed!"));
 			PN5180DEBUG_EXIT;
 			return -2;
 		}
 		// Clear TX CRC
 		if (!writeRegisterWithAndMask(CRC_TX_CONFIG, 0xFFFFFFFE)) {
+			PN5180ERROR(F("Clear TX CRC Failed!"));
 			PN5180DEBUG_EXIT;
 			return -2;
 		}
@@ -270,11 +276,13 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 		cmd[0] = 0x95;
 		cmd[1] = 0x20;
 		if (!sendData(cmd, 2, 0x00)) {
+			PN5180ERROR(F("Do anti collision 2 Failed!"));
 			PN5180DEBUG_EXIT;
 			return -2;
 		}
 		//Read 5 bytes. we will store at offset 2 for later use
 		if (!readData(5, cmd+2)) {
+			PN5180ERROR(F("Read 5 bytes Failed!"));
 			PN5180DEBUG_EXIT;
 			return -2;
 		}
@@ -284,11 +292,13 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 		}
 		//Enable RX CRC calculation
 		if (!writeRegisterWithOrMask(CRC_RX_CONFIG, 0x01)) {
+			PN5180ERROR(F("Enable RX CRC calculation Failed!"));
 			PN5180DEBUG_EXIT;
 			return -2;
 		}
 		//Enable TX CRC calculation
 		if (!writeRegisterWithOrMask(CRC_TX_CONFIG, 0x01)) {
+			PN5180ERROR(F("Enable TX CRC calculation Failed!"));
 			PN5180DEBUG_EXIT;
 			return -2;
 		}
@@ -296,11 +306,13 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 		cmd[0] = 0x95;
 		cmd[1] = 0x70;
 		if (!sendData(cmd, 7, 0x00)) {
+			PN5180ERROR(F("Send Select anti collision 2 Failed!"));
 			PN5180DEBUG_EXIT;
 			return -2;
 		}
 		//Read 1 byte SAK into buffer[2]
 		if (!readData(1, buffer + 2)) {
+			PN5180ERROR(F("Read 1 byte SAK into buffer[2] Failed!"));
 			PN5180DEBUG_EXIT;
 			return -2;
 		}
