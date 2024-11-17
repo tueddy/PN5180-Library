@@ -19,16 +19,6 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#ifdef DEBUG
-extern uint8_t _pn5180_debugIndent;
-extern uint8_t _pn5180_debugIndentN;
-extern bool _pn5180_debugNL;
-extern uint8_t _pn5180_debugSilent;
-
-// These macros are helper macros to make the see the debug macros like function calls so they do not alter any current code block structures when the macro contains if/else/break, etc.
-#define __DEBUG_BEGIN__   do{if(DEBUG){
-#define __DEBUG_END__     }}while(0)
-
 // DEBUG print with indention macros:
 //
 // USAGE:
@@ -83,6 +73,19 @@ extern uint8_t _pn5180_debugSilent;
 // |   IRQ-Status=0x00000004
 // ----------------------------------
 
+#if defined(DEBUG) || defined(DEBUG_ERROR)
+extern uint8_t _pn5180_debugIndent;
+extern uint8_t _pn5180_debugIndentN;
+extern bool _pn5180_debugNL;
+extern uint8_t _pn5180_debugSilent;
+
+// These macros are helper macros to make the see the debug macros like function calls so they do not alter any current code block structures when the macro contains if/else/break, etc.
+#define __DEBUG_BEGIN__   do{if(DEBUG){
+#define __DEBUG_END__     }}while(0)
+#define __ERROR_BEGIN__   do{if(DEBUG_ERROR){
+#define __ERROR_END__     }}while(0)
+
+#ifdef DEBUG
 #define PN5180DEBUG_OFF          __DEBUG_BEGIN__ ++_pn5180_debugSilent; __DEBUG_END__
 #define PN5180DEBUG_ON           __DEBUG_BEGIN__ _pn5180_debugSilent-=((_pn5180_debugSilent>0)?1:0); __DEBUG_END__
 #define PN5180DEBUG_ENTER        __DEBUG_BEGIN__ ++_pn5180_debugIndent; __DEBUG_END__
@@ -92,7 +95,7 @@ extern uint8_t _pn5180_debugSilent;
 #define PN5180DEBUG_PRINTF(...)  __DEBUG_BEGIN__ if (!_pn5180_debugSilent) { if (_pn5180_debugNL) PN5180DEBUG_INDENT; Serial.printf(__VA_ARGS__); }; __DEBUG_END__
 #define PN5180DEBUG_PRINT(...)   __DEBUG_BEGIN__ if (!_pn5180_debugSilent) { if (_pn5180_debugNL) PN5180DEBUG_INDENT; Serial.print(__VA_ARGS__); }; __DEBUG_END__
 #define PN5180DEBUG(msg)         PN5180DEBUG_PRINT(msg)
-#else
+#else 
 #define PN5180DEBUG_OFF
 #define PN5180DEBUG_ON
 #define PN5180DEBUG_ENTER
@@ -102,12 +105,18 @@ extern uint8_t _pn5180_debugSilent;
 #define PN5180DEBUG_PRINTF(...)
 #define PN5180DEBUG_PRINT(...)
 #define PN5180DEBUG(msg)
-#endif
+#endif /* DEBUG */
 
-#ifdef DEBUG
+#ifdef DEBUG_ERROR
+#define PN5180ERROR(...)		__ERROR_BEGIN__ if (!_pn5180_debugSilent) { if (!_pn5180_debugNL) Serial.print(F("\n"));; Serial.print(F("*** ERROR: ")); Serial.printf(__VA_ARGS__); Serial.print(F("\n"));}; __ERROR_END__
+#else
+#define PN5180ERROR(...)
+#endif /* DEBUG_ERROR */
+
 extern char * formatHex(const uint8_t val);
 extern char * formatHex(const uint16_t val);
 extern char * formatHex(const uint32_t val);
-#endif
+
+#endif /* defined(DEBUG) || defined(DEBUG_ERROR) */
 
 #endif /* DEBUG_H */
