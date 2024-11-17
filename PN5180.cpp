@@ -1108,7 +1108,7 @@ bool PN5180::cmd_RfOn(uint8_t parameter) {
   uint8_t cmd[] = { PN5180_RF_ON, parameter };
 
   if (!transceiveCommand(cmd, sizeof(cmd))) {
-    PN5180ERROR(F("cmd_RfOn() failed at transceiveCommand() Idle/StopCom Command"));
+    PN5180ERROR(F("cmd_RfOn() failed at transceiveCommand()"));
     PN5180DEBUG_EXIT;
     return false;
   }
@@ -1138,7 +1138,7 @@ bool PN5180::cmd_RfOff(uint8_t parameter) {
   uint8_t cmd[] = { PN5180_RF_OFF, parameter };
 
   if (!transceiveCommand(cmd, sizeof(cmd))) {
-    PN5180ERROR(F("cmd_RfOff() failed at transceiveCommand() Idle/StopCom Command"));
+    PN5180ERROR(F("cmd_RfOff() failed at transceiveCommand()"));
     PN5180DEBUG_EXIT;
     return false;
   }
