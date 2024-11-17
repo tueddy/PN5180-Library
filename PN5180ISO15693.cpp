@@ -73,9 +73,13 @@ PN5180ISO15693::PN5180ISO15693(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, S
 /*
  * Inventory, code=01
  *
+ * Inventory with flag for 16 time slots, code=01
+ * https://www.nxp.com.cn/docs/en/application-note/AN12650.pdf
  * Request format: SOF, Req.Flags, Inventory, AFI (opt.), Mask len, Mask value, CRC16, EOF
+ *                      |          |                      \_ Mask Length  (defined by ISO 15693)
+ *                      |          \_ 0x01: Inventory command (defined by ISO 15693)
+ *                      \_ 0x26: 0x02 high data rate | 0x04 inventory flags | 0x20 1 time slot (defined by ISO 15693)
  * Response format: SOF, Resp.Flags, DSFID, UID, CRC16, EOF
- *
  */
 ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
   PN5180DEBUG_PRINTF("PN5180ISO15693::getInventory()");
@@ -127,8 +131,10 @@ ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
  * Inventory with flag set for 16 time slots, code=01
  * https://www.nxp.com.cn/docs/en/application-note/AN12650.pdf
  * Request format: SOF, Req.Flags, Inventory, AFI (opt.), Mask len, Mask value, CRC16, EOF
+ *                      |          |                      \- ? Mask Length  (defined by ISO 15693)
+ *                      |          \- 0x01: Inventory command (defined by ISO 15693)
+ *                      \- 0x26: 0x02 high data rate | 0x04 inventory flags | !(0x20) 16 time slots (defined by ISO 15693)
  * Response format: SOF, Resp.Flags, DSFID, UID, CRC16, EOF
- *
  */
 ISO15693ErrorCode PN5180ISO15693::getInventoryMultiple(uint8_t *uid, uint8_t maxTags, uint8_t *numCard) {
   PN5180DEBUG_PRINTF("PN5180ISO15693::getInventoryMultiple(maxTags=%d, numCard=%d)", maxTags, *numCard);
