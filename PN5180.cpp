@@ -737,6 +737,7 @@ bool PN5180::setRF_off() {
   PN5180DEBUG_PRINTF(F("wait for RF field to shut down (max %d ms)"), SETRF_OFF_TIMEOUT);
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_OFF;
+  unsigned long startedWaiting = millis();
   while (0 == (TX_RFOFF_IRQ_STAT & getIRQStatus())) {   // wait for RF field to shut down
     if (millis() - startedWaiting > SETRF_OFF_TIMEOUT) {
       PN5180DEBUG_ON;
