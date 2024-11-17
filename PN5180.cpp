@@ -307,7 +307,7 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
   PN5180DEBUG_ENTER;
   
   if ((addr > 254) || ((addr+len) > 254)) {
-    PN5180ERROR(F("ERROR: Reading beyond addr 254!"));
+    PN5180ERROR(F("readEEprom() failed: Reading beyond addr 254!"));
     PN5180DEBUG_EXIT;
     return false;
   }
@@ -361,7 +361,7 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
   PN5180DEBUG_ENTER;
   
   if (len > 260) {
-    PN5180ERROR(F("sendData with more than 260 bytes is not supported!"));
+    PN5180ERROR(F("sendData() failed: more than 260 bytes is not supported!"));
     PN5180DEBUG_EXIT;
     return false;
   }
@@ -408,7 +408,7 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
 
   PN5180TransceiveStat transceiveState = getTransceiveState();
   if (PN5180_TS_WaitTransmit != transceiveState) {
-    PN5180ERROR(F("sendData() failed - Transceiver not in state WaitTransmit!?"));
+    PN5180ERROR(F("sendData() failed: Transceiver not in state WaitTransmit!?"));
     PN5180DEBUG_EXIT;
     return false;
   }
@@ -679,7 +679,7 @@ bool PN5180::setRF_on() {
   while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
     if (millis() - startedWaiting > 500) {
       PN5180DEBUG_ON;
-      PN5180ERROR(F("setRF_on failed - Set RF ON timeout"));
+      PN5180ERROR(F("setRF_on() timeout waiting for TX_RFON_IRQ_STAT"));
       PN5180DEBUG_EXIT;
       return false;
     }
@@ -720,7 +720,7 @@ bool PN5180::setRF_off() {
   while (0 == (TX_RFOFF_IRQ_STAT & getIRQStatus())) {   // wait for RF field to shut down
     if (millis() - startedWaiting > 500) {
       PN5180DEBUG_ON;
-      PN5180ERROR(F("setRF_off() failed - Set RF OFF timeout"));
+      PN5180ERROR(F("setRF_off() timeout waiting for TX_RFOFF_IRQ_STAT"));
       PN5180DEBUG_EXIT;
       return false; 
     }
@@ -795,7 +795,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   unsigned long startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-      PN5180ERROR("transceiveCommand timeout (send/0)");
+      PN5180ERROR("transceiveCommand() timeout waiting for BUSY=LOW (send/0)");
       PN5180_SPI.endTransaction();
       digitalWrite(PN5180_NSS, HIGH);
       PN5180DEBUG_EXIT;
@@ -810,7 +810,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (HIGH != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-      PN5180ERROR("transceiveCommand timeout (send/3)");
+      PN5180ERROR("transceiveCommand() timeout waiting for BUSY=HIGH (send/3)");
       PN5180_SPI.endTransaction();
       digitalWrite(PN5180_NSS, HIGH);
       PN5180DEBUG_EXIT;
@@ -823,7 +823,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-      PN5180ERROR("transceiveCommand timeout (send/5)");
+      PN5180ERROR("transceiveCommand() timeout waiting for BUSY=LOW (send/5)");
       PN5180_SPI.endTransaction();
       digitalWrite(PN5180_NSS, HIGH);
       PN5180DEBUG_EXIT;
@@ -849,7 +849,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis(); //delay(1);
   while (HIGH != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-      PN5180ERROR("transceiveCommand timeout (receive/3)");
+      PN5180ERROR("transceiveCommand() timeout waiting for BUSY=HIGH (receive/3)");
       PN5180_SPI.endTransaction();
       digitalWrite(PN5180_NSS, HIGH);
       PN5180DEBUG_EXIT;
@@ -862,7 +862,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-      PN5180ERROR("transceiveCommand timeout (receive/5)");
+      PN5180ERROR("transceiveCommand() timeout waiting for BUSY=LOW (receive/5)");
       PN5180_SPI.endTransaction();
       digitalWrite(PN5180_NSS, HIGH);
       PN5180DEBUG_EXIT;
@@ -901,7 +901,7 @@ void PN5180::reset() {
   while (0 == (IDLE_IRQ_STAT & getIRQStatus())) {   // wait for system to start up (with timeout)
     if (millis() - startedWaiting > commandTimeout) {
       PN5180DEBUG_ON;
-      PN5180ERROR(F("reset failed (timeout)!!!"));
+      PN5180ERROR(F("reset() timeout waiting for IDLE_IRQ_STAT"));
       // try again with larger time
       digitalWrite(PN5180_RST, LOW);  
       delay(10);
