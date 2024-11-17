@@ -95,6 +95,7 @@ ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
   uint8_t *readBuffer;
   ISO15693ErrorCode rc = issueISO15693Command(inventory, sizeof(inventory), &readBuffer);
   if (ISO15693_EC_OK != rc) {
+    PN5180DEBUG(F("getInventory() failed at issueISO15693Command()"));
     return rc;
   }
   for (int i=0; i<8; i++) {
