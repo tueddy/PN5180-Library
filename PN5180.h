@@ -143,9 +143,28 @@ public:
   void begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t SSpin=-1);
   void end();
 
+
+public:
+
+
   /*
-   * PN5180 direct commands with host interface
+   * PN5180 Direct Commands
+   *
+   * These functions are the low level interface to the device:
+   * 1. Verify command's parameters
+   * 2. Prepare the transmission frame
+   * 3. Call transceiveCommand() to send the command
+   * 4. No state checking
    */
+public:
+  /* 0x09 - SEND_DATA */
+  bool cmd_SendData(const uint8_t *data, int len, uint8_t validBits);
+  /* 0x16 - RF_ON */
+  bool cmd_RfOn(uint8_t parameter);
+  /* 0x17 - RF_OFF */
+  bool cmd_RfOff(uint8_t parameter);
+
+
 public:
   /* cmd 0x00 */
   bool writeRegister(uint8_t reg, uint32_t value);
@@ -189,9 +208,11 @@ public:
 public:
   void reset();
 
-  uint16_t commandTimeout = 500;
+  uint16_t commandTimeout = 5000;
   uint32_t getIRQStatus();
+  bool waitIRQ(uint8_t irq);
   bool clearIRQStatus(uint32_t irqMask);
+  bool cycleRF_off_on();
 
   PN5180TransceiveStat getTransceiveState();
 

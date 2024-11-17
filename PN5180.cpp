@@ -17,6 +17,7 @@
 // Lesser General Public License for more details.
 //
 //#define DEBUG 1
+#define DEBUG_ERROR 1
 
 #include <Arduino.h>
 #include "PN5180.h"
@@ -325,6 +326,7 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
   PN5180DEBUG_PRINTF(F("PN5180::sendData(*data, len=%d, validBits=%d)"), len, validBits);
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_ENTER;
+  
   if (len > 260) {
     PN5180DEBUG_PRINTLN(F("ERROR: sendData with more than 260 bytes is not supported!"));
     PN5180DEBUG_EXIT;
@@ -342,15 +344,27 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
   PN5180DEBUG_PRINTLN();
 #endif
 
-  uint8_t buffer[len+2];
-  buffer[0] = PN5180_SEND_DATA;
-  buffer[1] = validBits; // number of valid bits of last byte are transmitted (0 = all bits are transmitted)
-  for (int i=0; i<len; i++) {
-    buffer[2+i] = data[i];
+  //uint8_t buffer[len+2];
+  //buffer[0] = PN5180_SEND_DATA;
+  //buffer[1] = validBits; // number of valid bits of last byte are transmitted (0 = all bits are transmitted)
+  //for (int i=0; i<len; i++) {
+  //  buffer[2+i] = data[i];
+  //}
+
+  //   writeRegisterWithAndMask(SYSTEM_CONFIG, 0xfffffff8);  // Idle/StopCom Command
+  if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xfffffff8)) {
+    PN5180ERROR(F("sendData() failed at writeRegisterWithAndMask()"));
+    PN5180DEBUG_EXIT;
+    return false;
   }
 
-  writeRegisterWithAndMask(SYSTEM_CONFIG, 0xfffffff8);  // Idle/StopCom Command
-  writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003);   // Transceive Command
+  //   writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003);   // Transceive Command
+  if (!writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003)) {
+    PN5180ERROR(F("sendData() failed at writeRegisterWithOrMask()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+
   /*
    * Transceive command; initiates a transceive cycle.
    * Note: Depending on the value of the Initiator bit, a
@@ -362,14 +376,20 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
 
   PN5180TransceiveStat transceiveState = getTransceiveState();
   if (PN5180_TS_WaitTransmit != transceiveState) {
-    PN5180DEBUG_PRINTLN(F("*** ERROR: Transceiver not in state WaitTransmit!?"));
+    PN5180ERROR(F("sendData() failed - Transceiver not in state WaitTransmit!?"));
     PN5180DEBUG_EXIT;
     return false;
   }
 
-  bool ret = transceiveCommand(buffer, len+2);
+  //bool ret = transceiveCommand(buffer, len+2);
+  if (!cmd_SendData(data, len, validBits)) {
+    PN5180ERROR(F("sendData() failed at cmd_SendData()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+  
   PN5180DEBUG_EXIT;
-  return ret;
+  return true;
 }
 
 /*
@@ -594,9 +614,13 @@ bool PN5180::setRF_on() {
   PN5180DEBUG_PRINTLN(F("Set RF ON"));
   PN5180DEBUG_ENTER;
 
-  uint8_t cmd[] = { PN5180_RF_ON, 0x00 };
-
-  transceiveCommand(cmd, sizeof(cmd));
+  //uint8_t cmd[] = { PN5180_RF_ON, 0x00 };
+  //transceiveCommand(cmd, sizeof(cmd));
+  if (!cmd_RfOn(0)) {
+    PN5180ERROR(F("setRF_on() failed at cmd_RfOn()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
 
   unsigned long startedWaiting = millis();
   
@@ -626,9 +650,13 @@ bool PN5180::setRF_off() {
   PN5180DEBUG_PRINTLN(F("Set RF OFF"));
   PN5180DEBUG_ENTER;
 
-  uint8_t cmd[] { PN5180_RF_OFF, 0x00 };
-
-  transceiveCommand(cmd, sizeof(cmd));
+  //uint8_t cmd[] { PN5180_RF_OFF, 0x00 };
+  //transceiveCommand(cmd, sizeof(cmd));
+  if (!cmd_RfOff(0)) {
+    PN5180ERROR(F("setRF_off() failed at cmd_RfOff()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
 
   unsigned long startedWaiting = millis();
   PN5180DEBUG_PRINTLN(F("wait for RF field to shut down (max 500ms)"));
@@ -901,4 +929,119 @@ PN5180TransceiveStat PN5180::getTransceiveState() {
   ret = PN5180TransceiveStat(state);
   PN5180DEBUG_EXIT;
   return ret;
+}
+
+/*
+ * SEND_DATA - 0x09
+ * This instruction is used to write data into the transmission buffer, the START_SEND bit is automatically set.
+ *
+ * Payload       Length(byte)    Value/Description
+ * Command code  1               0x09
+ * Parameter     1               Number of valid bits in last Byte
+ *               1-260           Array of up to 260 elements {Transmit data}
+ *                               1 Byte Transmit Data
+ * Response:     -               -
+ *
+ * This command writes data to the RF transmission buffer and starts the RF transmission.
+ * The parameter ‘Number of valid bits in last Byte’ indicates the exact number of bits to be
+ * transmitted for the last byte (for non-byte aligned frames).
+ *
+ * Precondition: Host shall configure the Transceiver by setting the register
+ * SYSTEM_CONFIG.COMMAND to 0x3 before using the SEND_DATA command, as
+ * the command SEND_DATA is only writing data to the transmission buffer and starts the
+ * transmission but does not perform any configuration.
+ *
+ * Parameter: 'valid bits in last byte'
+ *
+ * Note: When the command terminates, the transmission might still be ongoing, i.e. the command starts the
+ * transmission but does not wait for the end of transmission.
+ *
+ * Condition: The size of ‘Tx Data’ field must be in the range from 0 to 260, inclusive (the 0 byte length
+ * allows a symbol only transmission when the TX_DATA_ENABLE is cleared).‘Number of
+ * valid bits in last Byte’ field must be in the range from 0 to 7. The command must not be
+ * called during an ongoing RF transmission. Transceiver must be in ‘WaitTransmit’ state
+ * with ‘Transceive’ command set. If the condition is not fulfilled, an exception is raised.
+ *
+ * Returns: true on success
+ */
+bool PN5180::cmd_SendData(const uint8_t *data, int len, uint8_t validBits) {
+  PN5180DEBUG_PRINTF(F("PN5180::cmd_sendData(*data, len=%d, validBits=%d)"), len, validBits);
+  PN5180DEBUG_PRINTLN();
+  
+  uint8_t buffer[len+2];
+  buffer[0] = PN5180_SEND_DATA;
+  buffer[1] = validBits; // number of valid bits of last byte are transmitted (0 = all bits are transmitted)
+  for (int i=0; i<len; i++) {
+    buffer[2+i] = data[i];
+  }
+
+  if (!transceiveCommand(buffer, len+2)) {
+    PN5180ERROR(F("cmd_SendData() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+  
+  PN5180DEBUG_EXIT;
+  return true;
+}
+
+/*
+ * RF_ON - 0x16
+ * This instruction switch on the RF Field
+ *
+ * Payload       Length(byte)    Value/Description
+ * Command code  1               0x16
+ * Parameter     1               Bit0 == 1: disable collision avoidance according to ISO18092
+ *                               Bit1 == 1: Use Active Communication mode according to ISO18092
+ * Response:     -               -
+ *
+ * This command is used to switch on the internal RF field. If enabled the TX_RFON_IRQ is
+ * set after the field is switched on.
+ *
+ * Returns: true on success
+ */
+bool PN5180::cmd_RfOn(uint8_t parameter) {
+  PN5180DEBUG_PRINTLN(F("PN5180::cmd_RfOn()"));
+  PN5180DEBUG_ENTER;
+
+  uint8_t cmd[] = { PN5180_RF_ON, parameter };
+
+  if (!transceiveCommand(cmd, sizeof(cmd))) {
+    PN5180ERROR(F("cmd_RfOn() failed at transceiveCommand() Idle/StopCom Command"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+
+  PN5180DEBUG_EXIT;
+  return true;
+}
+
+/*
+ * RF_OFF - 0x17
+ * This instruction switch off the RF Field	
+ *
+ * Payload       Length(byte)    Value/Description
+ * Command code  1               0x17
+ * Parameter     1               dummy byte, any value accepted
+ * Response:     -               -
+ *
+ * This command is used to switch off the internal RF field. If enabled, the TX_RFOFF_IRQ is set after the field is
+ * switched off.
+ *
+ * Returns: true on success
+ */
+bool PN5180::cmd_RfOff(uint8_t parameter) {
+  PN5180DEBUG_PRINTLN(F("PN5180::cmd_RfOff()"));
+  PN5180DEBUG_ENTER;
+
+  uint8_t cmd[] = { PN5180_RF_OFF, parameter };
+
+  if (!transceiveCommand(cmd, sizeof(cmd))) {
+    PN5180ERROR(F("cmd_RfOff() failed at transceiveCommand() Idle/StopCom Command"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+
+  PN5180DEBUG_EXIT;
+  return true;
 }
