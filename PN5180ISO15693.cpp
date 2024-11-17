@@ -22,6 +22,49 @@
 #include "PN5180ISO15693.h"
 #include "Debug.h"
 
+// ISO15693-3 (1999) Request Flags Table 3 (http://olmicrowaves.com/menucontents/designsupport/rfid/ISO15693-3.pdf, page 9)
+#define ISO15693_REQ_FLAG_SUBCARRIER	(1<<0)	// Subcarrier (0:ASK, 1:FSK)
+#define ISO15693_REQ_FLAG_DATARATE		(1<<1)	// Uplink data rate (0:Low, 1:High)
+#define ISO15693_REQ_FLAG_INVENTORY		(1<<2)	// Inventory (0: Bits 5-8 are table 4 flags, 1: Bits 5-8 are table 5 (inventory) flags)
+#define ISO15693_REQ_FLAG_PROTOCOL		(1<<3)	// Protocol extention (always 0)
+
+// ISO15693-3 (1999) Request Flags Table 4 (http://olmicrowaves.com/menucontents/designsupport/rfid/ISO15693-3.pdf, page 10)
+#define ISO15693_REQ_FLAG_SELECT		(1<<4)	// Select (0: if Address flag set, use address mode, 1: Use select mode)
+#define ISO15693_REQ_FLAG_ADDRESS		(1<<5)	// Address (0: Don't use address more, 1: Use address mode)
+#define ISO15693_REQ_FLAG_OPTION		(1<<6)	// Option (0: Default value, 1: Must be set for write operations)
+#define ISO15693_REQ_FLAG_RFU			(1<<7)	// RFU (always 0)
+
+// ISO15693-3 (1999) Request Flags Table 5 (http://olmicrowaves.com/menucontents/designsupport/rfid/ISO15693-3.pdf, page 10)
+#define ISO15693_REQ_FLAG_AFI			(1<<4)	// Inventory AFI (0: Don't use AFI, 1: Use AFI)
+#define ISO15693_REQ_FLAG_NBSLOTS		(1<<5)	// Inventory Slots (0: 16-slots, 1: 1-slot)
+#define ISO15693_REQ_FLAG_OPTION		(1<<6)	// Inventory Option (0: Default value, 1: Must be set for write operations)
+#define ISO15693_REQ_FLAG_RFU			(1<<7)	// Inventory RFU (always 0)
+
+// ISO15693-3 (1999) Response Flags Table 6 (http://olmicrowaves.com/menucontents/designsupport/rfid/ISO15693-3.pdf, page 11)
+#define ISO15693_RESP_FLAG_ERROR		(1<<0)	// Error: (0: no error, 1: error)
+#define ISO15693_RESP_FLAG_EXTENSION	(1<<3)	// Extension: (0: no protocol format extension, 1: protocol format is extended)
+
+// ISO15693-3 (1999) Response Error Codes Table 7 (http://olmicrowaves.com/menucontents/designsupport/rfid/ISO15693-3.pdf, page 12)
+// (See enum ISO15693ErrorCode in PN5180ISO15693.h)
+
+// ISO15693-3 (1999) Commands (http://olmicrowaves.com/menucontents/designsupport/rfid/ISO15693-3.pdf, pages 21)
+#define ISO15693_CMD_IVENTORY							(0x01)
+#define ISO15693_CMD_STAYQUIET							(0x02)
+// 0x03 to 0x1F RFU
+#define ISO15693_CMD_READSINGLEBLOCK					(0x20)
+#define ISO15693_CMD_WRITESINGLEBLOCK					(0x21)
+#define ISO15693_CMD_LOCKBLOCK							(0x22)
+#define ISO15693_CMD_READMULTIPLEBLOCKS					(0x23)
+#define ISO15693_CMD_WRITEMULTIPLEBLOCKS				(0x24)
+#define ISO15693_CMD_SELECT								(0x25)
+#define ISO15693_CMD_RESETTOREADY						(0x26)
+#define ISO15693_CMD_WRITEAFI							(0x27)
+#define ISO15693_CMD_LOCKAFI							(0x28)
+#define ISO15693_CMD_WRITEDSFID							(0x29)
+#define ISO15693_CMD_LOCKDSFID							(0x2A)
+#define ISO15693_CMD_GETSYSTEMINFORMATION				(0x2B)
+#define ISO15693_CMD_GETMULTIPLEBLOCKSECURITYSTATUS		(0x2C)
+
 PN5180ISO15693::PN5180ISO15693(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, SPIClass& spi) 
               : PN5180(SSpin, BUSYpin, RSTpin, spi) {
 }
@@ -34,10 +77,11 @@ PN5180ISO15693::PN5180ISO15693(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, S
  *
  */
 ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
-  //                     Flags,  CMD, maskLen
-  uint8_t inventory[] = { 0x26, 0x01, 0x00 };
-  //                        |\- inventory flag + high data rate
-  //                        \-- 1 slot: only one card, no AFI field present
+  uint8_t cmd = ISO15693_CMD_IVENTORY;
+  // flags = 1 slot, only one card, no AFI field present, inventory flag + high data rate
+  uint8_t flags = ISO15693_REQ_FLAG_NBSLOTS | ISO15693_REQ_FLAG_INVENTORY | ISO15693_REQ_FLAG_DATARATE;
+  uint8_t maskLen = 0x00;
+  uint8_t inventory[] = { cmd, flags, maskLen };
   PN5180DEBUG(F("Get Inventory...\n"));
 
   for (int i=0; i<8; i++) {
@@ -80,6 +124,7 @@ ISO15693ErrorCode PN5180ISO15693::getInventoryMultiple(uint8_t *uid, uint8_t max
   PN5180DEBUG_PRINTF("PN5180ISO15693::getInventoryMultiple(maxTags=%d, numCard=%d)", maxTags, *numCard);
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_ENTER;
+
   uint16_t collision[maxTags];
   *numCard = 0;
   uint8_t numCol = 0;
@@ -108,6 +153,9 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_ENTER;
   
+  uint8_t cmd = ISO15693_CMD_IVENTORY;
+  // flags = 16 slots: upto 16 cards, no AFI field present, inventory flag + high data rate
+  uint8_t flags = ISO15693_REQ_FLAG_INVENTORY | ISO15693_REQ_FLAG_DATARATE;
   uint8_t maskLen = 0;
   if(*numCol > 0){
     uint32_t mask = collision[0];
@@ -117,10 +165,8 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
     }while(mask > 0);
   } 
   uint8_t *p = (uint8_t*)&(collision[0]);
-  //                      Flags,  CMD,
-  const uint8_t inventory[7] = { 0x06, 0x01, uint8_t(maskLen*4), p[0], p[1], p[2], p[3] };
-  //                         |\- inventory flag + high data rate
-  //                         \-- 16 slots: upto 16 cards, no AFI field present
+
+  const uint8_t inventory[7] = { flags, cmd, uint8_t(maskLen*4), p[0], p[1], p[2], p[3] };
   uint8_t cmdLen = 3 + (maskLen/2) + (maskLen%2);
 #ifdef DEBUG
   PN5180DEBUG_PRINTF(F("mask=%d, maskLen=%d, cmdLen=%d"), p[0], maskLen, cmdLen);
