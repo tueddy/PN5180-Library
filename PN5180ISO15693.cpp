@@ -17,7 +17,7 @@
 // Lesser General Public License for more details.
 //
 //#define DEBUG 1
-#define DEBUG_ERROR 1
+//#define DEBUG_ERROR 1
 
 #include <Arduino.h>
 #include "PN5180ISO15693.h"

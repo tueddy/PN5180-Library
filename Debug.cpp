@@ -16,7 +16,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 // Lesser General Public License for more details.
 //
-#define DEBUG 1
+//#define DEBUG 1
+
 #include <inttypes.h>
 #include "Debug.h"
 
