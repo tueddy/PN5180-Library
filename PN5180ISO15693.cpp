@@ -154,12 +154,20 @@ ISO15693ErrorCode PN5180ISO15693::getInventoryMultiple(uint8_t *uid, uint8_t max
     PN5180DEBUG(formatHex(collision[0]));
     PN5180DEBUG_PRINTLN();
 #endif
-    inventoryPoll(uid, maxTags, numCard, &numCol, collision);
+
+    //                    inventoryPoll(uid, maxTags, numCard, &numCol, collision);
+    if (ISO15693_EC_OK != inventoryPoll(uid, maxTags, numCard, &numCol, collision)) {
+      PN5180ERROR(F("getInventoryMultiple() failed at collision resolution inventoryPoll()"));
+      PN5180DEBUG_EXIT;
+      return ISO15693_EC_UNKNOWN_ERROR;
+    }
+
     numCol--;
     for(int i=0; i<numCol; i++){
       collision[i] = collision[i+1];
     }
   }
+  
   PN5180DEBUG_EXIT;
   return ISO15693_EC_OK;
 }
@@ -188,13 +196,31 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
   PN5180DEBUG_PRINTF(F("mask=%d, maskLen=%d, cmdLen=%d"), p[0], maskLen, cmdLen);
   PN5180DEBUG_PRINTLN();
 #endif
-  clearIRQStatus(0x000FFFFF);                                      // 3. Clear all IRQ_STATUS flags
-  sendData(inventory, cmdLen, 0);                                  // 4. 5. 6. Idle/StopCom Command, Transceive Command, Inventory command
+
+  //   clearIRQStatus(0x000FFFFF);                                      // 3. Clear all IRQ_STATUS flags
+  if (!clearIRQStatus(0x000FFFFF)) {
+    PN5180ERROR(F("inventoryPoll() failed at step 3. clearIRQStatus()"));
+    PN5180DEBUG_EXIT;
+    return ISO15693_EC_UNKNOWN_ERROR;
+  }
+
+  //   sendData(inventory, cmdLen, 0);                                  // 4. 5. 6. Idle/StopCom Command, Transceive Command, Inventory command
+  if (!sendData(inventory, cmdLen, 0)) {
+    PN5180ERROR(F("inventoryPoll() failed at step 4.5.6. sendData()"));
+    PN5180DEBUG_EXIT;
+    return ISO15693_EC_UNKNOWN_ERROR;
+  }
   
   for(uint8_t slot=0; slot<16; slot++){                                // 7. Loop to check 16 time slots for data
     uint32_t rxStatus;
     uint32_t irqStatus = getIRQStatus();
-    readRegister(RX_STATUS, &rxStatus);
+
+    //   readRegister(RX_STATUS, &rxStatus);
+    if (!readRegister(RX_STATUS, &rxStatus)) {
+      PN5180ERROR(F("inventoryPoll() failed at step 7. readRegister() for slot %d"), slot);
+      PN5180DEBUG_EXIT;
+      return ISO15693_EC_UNKNOWN_ERROR;
+    }
     PN5180DEBUG(F("slot="));
     PN5180DEBUG(formatHex(slot));
     PN5180DEBUG(F(": "));
@@ -203,6 +229,7 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
     PN5180DEBUG(F(", RX_STATUS="));
     PN5180DEBUG(formatHex(rxStatus));
     PN5180DEBUG(F(": "));
+	
     uint16_t len = (uint16_t)(rxStatus & 0x000001ff);
     if((rxStatus >> 18) & 0x01 && *numCol < maxTags){              // 7+ Determine if a collision occurred
       if(maskLen > 0) collision[*numCol] = collision[0] | (slot << (maskLen * 4));
@@ -224,8 +251,7 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
       uint8_t *readBuffer;
       readBuffer = readData(len+1);                                // 9. Read reception buffer
       if(0L == readBuffer){
-        PN5180DEBUG(F("ERROR in readData!"));
-        PN5180DEBUG_PRINTLN();
+        PN5180ERROR(F("inventoryPoll() failed at step 9. readBuffer() for slot %d"), slot);
 		PN5180DEBUG_EXIT;
         return ISO15693_EC_UNKNOWN_ERROR;
       }
@@ -254,13 +280,39 @@ ISO15693ErrorCode PN5180ISO15693::inventoryPoll(uint8_t *uid, uint8_t maxTags, u
     }
     
     if(slot+1 < 16){ // If we have more cards to poll for...
-      writeRegisterWithAndMask(TX_CONFIG, 0xFFFFFB3F);             // 11. Next SEND_DATA will only include EOF
-      clearIRQStatus(0x000FFFFF);                                  // 14. Clear all IRQ_STATUS flags
-      sendData(inventory, 0, 0);                                   // 12. 13. 15. Idle/StopCom Command, Transceive Command, Send EOF
+      //   writeRegisterWithAndMask(TX_CONFIG, 0xFFFFFB3F);             // 11. Next SEND_DATA will only include EOF
+      if (!writeRegisterWithAndMask(TX_CONFIG, 0xFFFFFB3F)) {
+        PN5180ERROR(F("inventoryPoll() failed at step 11. writeRegisterWithAndMask() for slot %d"), slot);
+        PN5180DEBUG_EXIT;
+        return ISO15693_EC_UNKNOWN_ERROR;
+      }
+      //   clearIRQStatus(0x000FFFFF);                                  // 14. Clear all IRQ_STATUS flags
+      if (!clearIRQStatus(0x000FFFFF)) {
+        PN5180ERROR(F("inventoryPoll() failed at step 14. clearIRQStatus() for slot %d"), slot);
+        PN5180DEBUG_EXIT;
+        return ISO15693_EC_UNKNOWN_ERROR;
+      }
+      //   sendData(inventory, 0, 0);                                   // 12. 13. 15. Idle/StopCom Command, Transceive Command, Send EOF
+      if (!sendData(inventory, 0, 0)) {
+        PN5180ERROR(F("inventoryPoll() failed at step 12.13.15. clearIRQStatus() for slot %d"), slot);
+        PN5180DEBUG_EXIT;
+        return ISO15693_EC_UNKNOWN_ERROR;
+      }
     }
   }
-  setRF_off();                                                     // 16. Switch off RF field
-  setupRF();                                                       // 1. 2. Load ISO15693 config, RF on
+  //   setRF_off();                                                     // 16. Switch off RF field
+  if (!setRF_off()) {
+    PN5180ERROR(F("inventoryPoll() failed at step 16. setRF_off()"));
+    PN5180DEBUG_EXIT;
+    return ISO15693_EC_UNKNOWN_ERROR;
+  }
+  //   setupRF();                                                       // 1. 2. Load ISO15693 config, RF on
+  if (!setupRF()) {
+    PN5180ERROR(F("inventoryPoll() failed at step 1.2. setupRF()"));
+    PN5180DEBUG_EXIT;
+    return ISO15693_EC_UNKNOWN_ERROR;
+  }
+
   PN5180DEBUG_EXIT;
   return ISO15693_EC_OK;
 }
