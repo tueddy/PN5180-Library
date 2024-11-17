@@ -77,6 +77,10 @@ PN5180ISO15693::PN5180ISO15693(uint8_t SSpin, uint8_t BUSYpin, uint8_t RSTpin, S
  *
  */
 ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
+  PN5180DEBUG_PRINTF("PN5180ISO15693::getInventory()");
+  PN5180DEBUG_PRINTLN();
+  PN5180DEBUG_ENTER;
+
   uint8_t cmd = ISO15693_CMD_INVENTORY;
   // flags = 1 slot, only one card, no AFI field present, inventory flag + high data rate
   uint8_t flags = ISO15693_REQ_FLAG_NBSLOTS | ISO15693_REQ_FLAG_INVENTORY | ISO15693_REQ_FLAG_DATARATE;
@@ -93,6 +97,9 @@ ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
   if (ISO15693_EC_OK != rc) {
     return rc;
   }
+  for (int i=0; i<8; i++) {
+    uid[i] = readBuffer[2+i];
+  }
 
   PN5180DEBUG(F("Response flags: "));
   PN5180DEBUG(formatHex(readBuffer[0]));
@@ -100,16 +107,16 @@ ISO15693ErrorCode PN5180ISO15693::getInventory(uint8_t *uid) {
   PN5180DEBUG(formatHex(readBuffer[1]));
   PN5180DEBUG(F(", UID: "));
   
+#ifdef DEBUG
   for (int i=0; i<8; i++) {
     uid[i] = readBuffer[2+i];
-#ifdef DEBUG
     PN5180DEBUG(formatHex(uid[7-i])); // LSB comes first
     if (i<2) PN5180DEBUG(":");
-#endif
   }
-  
   PN5180DEBUG_PRINTLN();
+#endif
 
+  PN5180DEBUG_EXIT;
   return ISO15693_EC_OK;
 }
 
