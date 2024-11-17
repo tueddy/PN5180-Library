@@ -305,8 +305,9 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
   PN5180DEBUG_PRINTF(F("PN5180::readEEprom(addr=%s, *buffer, len=%d)"), formatHex(addr), len);
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_ENTER;
+  
   if ((addr > 254) || ((addr+len) > 254)) {
-    PN5180DEBUG_PRINTLN(F("ERROR: Reading beyond addr 254!"));
+    PN5180ERROR(F("ERROR: Reading beyond addr 254!"));
     PN5180DEBUG_EXIT;
     return false;
   }
@@ -360,7 +361,7 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
   PN5180DEBUG_ENTER;
   
   if (len > 260) {
-    PN5180DEBUG_PRINTLN(F("ERROR: sendData with more than 260 bytes is not supported!"));
+    PN5180ERROR(F("sendData with more than 260 bytes is not supported!"));
     PN5180DEBUG_EXIT;
     return false;
   }
@@ -861,7 +862,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-      PN5180ERROR("PN5180ERRORtransceiveCommand timeout (receive/5)");
+      PN5180ERROR("transceiveCommand timeout (receive/5)");
       PN5180_SPI.endTransaction();
       digitalWrite(PN5180_NSS, HIGH);
       PN5180DEBUG_EXIT;
