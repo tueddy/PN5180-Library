@@ -212,7 +212,6 @@ public:
   uint32_t getIRQStatus();
   bool waitIRQ(uint8_t irq);
   bool clearIRQStatus(uint32_t irqMask);
-  bool cycleRF_off_on();
 
   PN5180TransceiveStat getTransceiveState();
 
