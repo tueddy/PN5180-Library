@@ -344,6 +344,12 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
 }
 
 /*
+ * This function:
+ * 1. checks parameters
+ * 2. sets SYSTEM_CONFIG Idle/StopCom Command
+ * 3. sets SYSTEM_CONFIG Transceive Command
+ * 4. calls cmd_SendData() which in turn calls transceiveCommand() to send the command over SPI to the PN5180 chip
+ *
  * SEND_DATA - 0x09
  * This command writes data to the RF transmission buffer and starts the RF transmission.
  * The parameter ‘Number of valid bits in last Byte’ indicates the exact number of bits to be
@@ -380,13 +386,7 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
   PN5180DEBUG_PRINTLN();
 #endif
 
-  //uint8_t buffer[len+2];
-  //buffer[0] = PN5180_SEND_DATA;
-  //buffer[1] = validBits; // number of valid bits of last byte are transmitted (0 = all bits are transmitted)
-  //for (int i=0; i<len; i++) {
-  //  buffer[2+i] = data[i];
-  //}
-  //   writeRegisterWithAndMask(SYSTEM_CONFIG, 0xfffffff8);  // Idle/StopCom Command
+  // Idle/StopCom Command
   if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xfffffff8)) {
     PN5180ERROR(F("sendData() failed at writeRegisterWithAndMask() Idle/StopCom Command"));
     PN5180DEBUG_EXIT;
@@ -416,7 +416,6 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
     return false;
   }
 
-  //bool ret = transceiveCommand(buffer, len+2);
   if (!cmd_SendData(data, len, validBits)) {
     PN5180ERROR(F("sendData() failed at cmd_SendData()"));
     PN5180DEBUG_EXIT;
