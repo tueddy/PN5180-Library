@@ -17,26 +17,41 @@
 // Lesser General Public License for more details.
 //
 //#define DEBUG 1
+//#define DEBUG_ERROR 1
 
 #include <Arduino.h>
 #include "PN5180.h"
 #include "Debug.h"
 
 // PN5180 1-Byte Direct Commands
-// see 11.4.3.3 Host Interface Command List
-#define PN5180_WRITE_REGISTER           (0x00)
-#define PN5180_WRITE_REGISTER_OR_MASK   (0x01)
-#define PN5180_WRITE_REGISTER_AND_MASK  (0x02)
-#define PN5180_READ_REGISTER            (0x04)
-#define PN5180_WRITE_EEPROM             (0x06)
-#define PN5180_READ_EEPROM              (0x07)
-#define PN5180_SEND_DATA                (0x09)
-#define PN5180_READ_DATA                (0x0A)
-#define PN5180_SWITCH_MODE              (0x0B)
-#define PN5180_MIFARE_AUTHENTICATE      (0x0C)
-#define PN5180_LOAD_RF_CONFIG           (0x11)
-#define PN5180_RF_ON                    (0x16)
-#define PN5180_RF_OFF                   (0x17)
+// see 11.4.3.3 Host Interface Command List (https://www.nxp.com/docs/en/data-sheet/PN5180A0XX_C3_C4.pdf, page 20)
+#define PN5180_WRITE_REGISTER                       (0x00)  // Write one 32bit register value
+#define PN5180_WRITE_REGISTER_OR_MASK               (0x01)  // Sets one 32bit register value using a 32 bit OR mask
+#define PN5180_WRITE_REGISTER_AND_MASK              (0x02)  // Sets one 32bit register value using a 32 bit AND mask
+//#define PN5180_WRITE_REGISTER_MULTIPLE              (0x03)  // Processes an array of register addresses in random order and performs the defined action on these addresses.
+#define PN5180_READ_REGISTER                        (0x04)  // Reads one 32bit register value
+//#define PN5180_READ_REGISTER_MULTIPLE               (0x05)  // Reads from an array of max.18 register addresses in random order
+#define PN5180_WRITE_EEPROM                         (0x06)  // Processes an array of EEPROM addresses in random order and writes the value to these addresses
+#define PN5180_READ_EEPROM                          (0x07)  // Processes an array of EEPROM addresses from a start address and reads the values from these addresses
+//#define PN5180_WRITE_TX_DATA                        (0x08)  // Write data into the transmission buffer
+#define PN5180_SEND_DATA                            (0x09)  // Write data into the transmission buffer, the START_SEND bit is automatically set
+#define PN5180_READ_DATA                            (0x0A)  // Read data from reception buffer, after successful reception
+#define PN5180_SWITCH_MODE                          (0x0B)  // Switch the mode. It is only possible to switch from NormalMode to standby, LPCD or Autocoll
+#define PN5180_MIFARE_AUTHENTICATE                  (0x0C)  // Perform a MIFARE Classic Authentication on an activated card
+//#define PN5180_EPC_INVENTORY                        (0x0D)  // Perform an inventory of ISO18000-3M3 tags
+//#define PN5180_EPC_RESUME_INVENTORY                 (0x0E)  // Resume the inventory algorithm in case it is paused
+//#define PN5180_EPC_RETRIEVE_INVENTORY_RESULT_SIZE   (0x0F)  // Retrieve the size of the inventory result
+//#define PN5180_EPC_RETRIEVE_INVENTORY_RESULT        (0x10)  // Retrieve the result of a preceding EPC_INVENTORY or EPC_RESUME_INVENTORY instruction
+#define PN5180_LOAD_RF_CONFIG                       (0x11)  // Load the RF configuration from EEPROM into the configuration registers
+//#define UPDATE_RF_CONFIG                            (0x12)  // Update the RF configuration within EEPROM.
+//#define RETRIEVE_RF_CONFIG_SIZE                     (0x13)  // Retrieve the number of registers for a selected RF configuration
+//#define RETRIEVE_RF_CONFIG                          (0x14)  // Read out an RF configuration. The register address-value-pairs are available in the response
+//#define RFU                                         (0x15) 	// RFU (reserved for future use)
+#define PN5180_RF_ON                                (0x16)  // Switch on the RF Field
+#define PN5180_RF_OFF                               (0x17)  // Switch off the RF Field
+
+#define SETRF_ON_TIMEOUT	(500)
+#define SETRF_OFF_TIMEOUT	(500)
 
 uint8_t PN5180::readBufferStatic16[16];
 
@@ -140,8 +155,13 @@ bool PN5180::writeRegister(uint8_t reg, uint32_t value) {
    */
   uint8_t cmd[] = { PN5180_WRITE_REGISTER, reg, p[0], p[1], p[2], p[3] };
 
-  transceiveCommand(cmd, sizeof(cmd));
-
+  //   transceiveCommand(cmd, sizeof(cmd));
+  if (!transceiveCommand(cmd, sizeof(cmd))) {
+    PN5180ERROR(F("writeRegister() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+  
   PN5180DEBUG_EXIT;
   return true;
 }
@@ -172,14 +192,19 @@ bool PN5180::writeRegisterWithOrMask(uint8_t reg, uint32_t mask) {
 
   uint8_t cmd[] = { PN5180_WRITE_REGISTER_OR_MASK, reg, p[0], p[1], p[2], p[3] };
 
-  transceiveCommand(cmd, sizeof(cmd));
+  //   transceiveCommand(cmd, sizeof(cmd));
+  if (!transceiveCommand(cmd, sizeof(cmd))) {
+    PN5180ERROR(F("writeRegisterWithOrMask() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
 
   PN5180DEBUG_EXIT;
   return true;
 }
 
 /*
- * WRITE _REGISTER_AND_MASK - 0x02
+ * WRITE_REGISTER_AND_MASK - 0x02
  * This command modifies the content of a register using a logical AND operation. The
  * content of the register is read and a logical AND operation is performed with the provided
  * mask. The modified content is written back to the register.
@@ -204,7 +229,12 @@ bool PN5180::writeRegisterWithAndMask(uint8_t reg, uint32_t mask) {
 
   uint8_t cmd[] = { PN5180_WRITE_REGISTER_AND_MASK, reg, p[0], p[1], p[2], p[3] };
 
-  transceiveCommand(cmd, sizeof(cmd));
+  //   transceiveCommand(cmd, sizeof(cmd));
+  if (!transceiveCommand(cmd, sizeof(cmd))) {
+    PN5180ERROR(F("writeRegisterWithAndMask() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
 
   PN5180DEBUG_EXIT;
   return true;
@@ -224,7 +254,12 @@ bool PN5180::readRegister(uint8_t reg, uint32_t *value) {
 
   uint8_t cmd[] = { PN5180_READ_REGISTER, reg };
 
-  transceiveCommand(cmd, sizeof(cmd), (uint8_t*)value, 4);
+  //   transceiveCommand(cmd, sizeof(cmd), (uint8_t*)value, 4);
+  if (!transceiveCommand(cmd, sizeof(cmd), (uint8_t*)value, 4)) {
+    PN5180ERROR(F("readRegister() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
 
   PN5180DEBUG(F("Register value=0x"));
   PN5180DEBUG(formatHex(*value));
@@ -241,11 +276,19 @@ bool PN5180::writeEEprom(uint8_t addr, const uint8_t *buffer, uint8_t len) {
   PN5180DEBUG_PRINTF(F("PN5180::writeEEprom(addr=%s, *buffer, len=%d)"), formatHex(addr), len);
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_ENTER;
+
   uint8_t cmd[len + 2];
   cmd[0] = PN5180_WRITE_EEPROM;
   cmd[1] = addr;
   for (int i = 0; i < len; i++) cmd[2 + i] = buffer[i];
-  transceiveCommand(cmd, len + 2);
+
+  //   transceiveCommand(cmd, len + 2);
+  if (!transceiveCommand(cmd, len + 2)) {
+    PN5180ERROR(F("writeEEprom() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+
   PN5180DEBUG_EXIT;
   return true;
 }
@@ -265,8 +308,9 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
   PN5180DEBUG_PRINTF(F("PN5180::readEEprom(addr=%s, *buffer, len=%d)"), formatHex(addr), len);
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_ENTER;
+  
   if ((addr > 254) || ((addr+len) > 254)) {
-    PN5180DEBUG_PRINTLN(F("ERROR: Reading beyond addr 254!"));
+    PN5180ERROR(F("readEEprom() failed: Reading beyond addr 254!"));
     PN5180DEBUG_EXIT;
     return false;
   }
@@ -279,7 +323,12 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
 
   uint8_t cmd[] = { PN5180_READ_EEPROM, addr, uint8_t(len) };
 
-  transceiveCommand(cmd, sizeof(cmd), buffer, len);
+  //   transceiveCommand(cmd, sizeof(cmd), buffer, len);
+  if (!transceiveCommand(cmd, sizeof(cmd), buffer, len)) {
+    PN5180ERROR(F("readEEprom() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
 
 #ifdef DEBUG
   PN5180DEBUG(F("EEPROM values: "));
@@ -294,8 +343,13 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
   return true;
 }
 
-
 /*
+ * This function:
+ * 1. checks parameters
+ * 2. sets SYSTEM_CONFIG Idle/StopCom Command
+ * 3. sets SYSTEM_CONFIG Transceive Command
+ * 4. calls cmd_SendData() which in turn calls transceiveCommand() to send the command over SPI to the PN5180 chip
+ *
  * SEND_DATA - 0x09
  * This command writes data to the RF transmission buffer and starts the RF transmission.
  * The parameter ‘Number of valid bits in last Byte’ indicates the exact number of bits to be
@@ -314,8 +368,9 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
   PN5180DEBUG_PRINTF(F("PN5180::sendData(*data, len=%d, validBits=%d)"), len, validBits);
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_ENTER;
+  
   if (len > 260) {
-    PN5180DEBUG_PRINTLN(F("ERROR: sendData with more than 260 bytes is not supported!"));
+    PN5180ERROR(F("sendData() failed: more than 260 bytes is not supported!"));
     PN5180DEBUG_EXIT;
     return false;
   }
@@ -331,15 +386,20 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
   PN5180DEBUG_PRINTLN();
 #endif
 
-  uint8_t buffer[len+2];
-  buffer[0] = PN5180_SEND_DATA;
-  buffer[1] = validBits; // number of valid bits of last byte are transmitted (0 = all bits are transmitted)
-  for (int i=0; i<len; i++) {
-    buffer[2+i] = data[i];
+  // Idle/StopCom Command
+  if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xfffffff8)) {
+    PN5180ERROR(F("sendData() failed at writeRegisterWithAndMask() Idle/StopCom Command"));
+    PN5180DEBUG_EXIT;
+    return false;
   }
 
-  writeRegisterWithAndMask(SYSTEM_CONFIG, 0xfffffff8);  // Idle/StopCom Command
-  writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003);   // Transceive Command
+  //   writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003);   // Transceive Command
+  if (!writeRegisterWithOrMask(SYSTEM_CONFIG, 0x00000003)) {
+    PN5180ERROR(F("sendData() failed at writeRegisterWithOrMask() Transceive Command"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+
   /*
    * Transceive command; initiates a transceive cycle.
    * Note: Depending on the value of the Initiator bit, a
@@ -351,14 +411,19 @@ bool PN5180::sendData(const uint8_t *data, int len, uint8_t validBits) {
 
   PN5180TransceiveStat transceiveState = getTransceiveState();
   if (PN5180_TS_WaitTransmit != transceiveState) {
-    PN5180DEBUG_PRINTLN(F("*** ERROR: Transceiver not in state WaitTransmit!?"));
+    PN5180ERROR(F("sendData() failed: Transceiver not in state WaitTransmit!?"));
     PN5180DEBUG_EXIT;
     return false;
   }
 
-  bool ret = transceiveCommand(buffer, len+2);
+  if (!cmd_SendData(data, len, validBits)) {
+    PN5180ERROR(F("sendData() failed at cmd_SendData()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+  
   PN5180DEBUG_EXIT;
-  return ret;
+  return true;
 }
 
 /*
@@ -377,7 +442,7 @@ uint8_t * PN5180::readData(int len) {
   PN5180DEBUG_ENTER;
   
   if (len < 0 || len > 508) {
-    Serial.println(F("*** FATAL: Reading more than 508 bytes is not supported!"));
+    Serial.println(F("readData() failed: Reading more than 508 bytes is not supported!"));
     PN5180DEBUG_EXIT;
     return 0L;
   }
@@ -397,14 +462,20 @@ uint8_t * PN5180::readData(int len) {
     if (!readBufferDynamic508) {
        readBufferDynamic508 = (uint8_t *) malloc(508);
        if (!readBufferDynamic508) {
-        PN5180DEBUG(F("Cannot allocate the read buffer of 508 Bytes!"));
+        PN5180ERROR(F("readData() failed: Cannot allocate the read buffer of 508 Bytes!"));
         PN5180DEBUG_EXIT;
         return 0;
        }
     }
     readBuffer = readBufferDynamic508;
   }
-  transceiveCommand(cmd, sizeof(cmd), readBuffer, len);
+
+  //   transceiveCommand(cmd, sizeof(cmd), readBuffer, len);
+  if (!transceiveCommand(cmd, sizeof(cmd), readBuffer, len)) {
+    PN5180ERROR(F("readData() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return 0L;
+  }
 
 #ifdef DEBUG
   PN5180DEBUG(F("Data read: "));
@@ -429,9 +500,16 @@ bool PN5180::readData(int len, uint8_t *buffer) {
     return false;
   }
   uint8_t cmd[] = { PN5180_READ_DATA, 0x00 };
-  bool ret = transceiveCommand(cmd, sizeof(cmd), buffer, len);
+  
+  //bool ret = transceiveCommand(cmd, sizeof(cmd), buffer, len);
+  if (!transceiveCommand(cmd, sizeof(cmd), buffer, len)) {
+    PN5180ERROR(F("sendData() failed at writeRegisterWithAndMask() Idle/StopCom Command"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+
   PN5180DEBUG_EXIT;
-  return ret;
+  return true;
 }
 
 /* prepare LPCD registers (Low Power Card Detection) */
@@ -513,7 +591,7 @@ bool PN5180::switchToLPCD(uint16_t wakeupCounterInMs) {
 */
 int16_t PN5180::mifareAuthenticate(uint8_t blockNo, const uint8_t *key, uint8_t keyType, const uint8_t *uid) {
   if (keyType != 0x60 && keyType != 0x61){
-    PN5180DEBUG_PRINTLN(F("*** ERROR: invalid key type supplied!"));
+    PN5180ERROR(F("invalid key type supplied!"));
     return -2;
   }
 
@@ -529,10 +607,10 @@ int16_t PN5180::mifareAuthenticate(uint8_t blockNo, const uint8_t *key, uint8_t 
     cmdBuffer[9+i] = uid[i];
   }
 
-  bool retval = transceiveCommand(cmdBuffer, 13, rcvBuffer, 1);
-
-  if (!retval){
-    PN5180DEBUG_PRINTLN(F("*** ERROR: sending command failed!"));
+  //bool retval = transceiveCommand(cmdBuffer, 13, rcvBuffer, 1);
+  if (!transceiveCommand(cmdBuffer, 13, rcvBuffer, 1)) {
+    PN5180ERROR(F("mifareAuthenticate() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
     return -3;
   }
   
@@ -568,7 +646,12 @@ bool PN5180::loadRFConfig(uint8_t txConf, uint8_t rxConf) {
 
   uint8_t cmd[] = { PN5180_LOAD_RF_CONFIG, txConf, rxConf };
 
-  transceiveCommand(cmd, sizeof(cmd));
+  //  transceiveCommand(cmd, sizeof(cmd));
+  if (!transceiveCommand(cmd, sizeof(cmd))) {
+    PN5180ERROR(F("loadRFConfig() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
 
   PN5180DEBUG_EXIT;
   return true;
@@ -580,28 +663,54 @@ bool PN5180::loadRFConfig(uint8_t txConf, uint8_t rxConf) {
  * set after the field is switched on.
  */
 bool PN5180::setRF_on() {
-  PN5180DEBUG_PRINTLN(F("Set RF ON"));
+  PN5180DEBUG_PRINTLN(F("PN5180::setRF_on()"));
   PN5180DEBUG_ENTER;
 
-  uint8_t cmd[] = { PN5180_RF_ON, 0x00 };
+  //uint8_t cmd[] = { PN5180_RF_ON, 0x00 };
+  //transceiveCommand(cmd, sizeof(cmd));
+  if (!cmd_RfOn(0)) {
+    PN5180ERROR(F("setRF_on() failed at cmd_RfOn()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
 
-  transceiveCommand(cmd, sizeof(cmd));
-
-  unsigned long startedWaiting = millis();
-  
-  PN5180DEBUG_PRINTLN(F("wait for RF field to set up (max 500ms)"));
+  PN5180DEBUG_PRINTF(F("wait for RF field to set up (max %d ms)"), SETRF_ON_TIMEOUT);
+  PN5180DEBUG_PRINTLN();
   PN5180DEBUG_OFF;
-  while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
-    if (millis() - startedWaiting > 500) {
+  //while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
+  //  if (millis() - startedWaiting > SETRF_ON_TIMEOUT) {
+  //    PN5180DEBUG_ON;
+  //    PN5180ERROR(F("setRF_on() timeout waiting for TX_RFON_IRQ_STAT"));
+  //    PN5180DEBUG_EXIT;
+  //    return false;
+  //  }
+  //};
+  unsigned long startedWaiting = millis();
+  uint32_t irqStatus;
+  while (1) {   // wait for RF field to shut down
+    if (!readRegister(IRQ_STATUS, &irqStatus)) {
       PN5180DEBUG_ON;
-      PN5180DEBUG_PRINTLN(F("*** ERROR: Set RF ON timeout"));
+      PN5180ERROR(F("setRF_off() failed at readRegister()"));
+      PN5180DEBUG_EXIT;
+      return false;
+    }
+	if (0 != (TX_RFON_IRQ_STAT & irqStatus)) break;
+    if (millis() - startedWaiting > SETRF_ON_TIMEOUT) {
+      PN5180DEBUG_ON;
+      PN5180ERROR(F("setRF_on() timeout failed waiting for SETRF_ON_TIMEOUT"));
       PN5180DEBUG_EXIT;
       return false; 
     }
-  };
+  }
   PN5180DEBUG_ON;
   
-  clearIRQStatus(TX_RFON_IRQ_STAT);
+  //   clearIRQStatus(TX_RFON_IRQ_STAT);
+  if (!clearIRQStatus(TX_RFON_IRQ_STAT)) {
+    PN5180ERROR(F("setRF_on() failed at clearIRQStatus()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+
   PN5180DEBUG_EXIT;
   return true;
 }
@@ -612,27 +721,43 @@ bool PN5180::setRF_on() {
  * is set after the field is switched off.
  */
 bool PN5180::setRF_off() {
-  PN5180DEBUG_PRINTLN(F("Set RF OFF"));
+  PN5180DEBUG_PRINTLN(F("PN5180::setRF_off()"));
   PN5180DEBUG_ENTER;
 
-  uint8_t cmd[] { PN5180_RF_OFF, 0x00 };
+  if (!cmd_RfOff(0)) {
+    PN5180ERROR(F("setRF_off() failed at cmd_RfOff()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
 
-  transceiveCommand(cmd, sizeof(cmd));
-
-  unsigned long startedWaiting = millis();
-  PN5180DEBUG_PRINTLN(F("wait for RF field to shut down (max 500ms)"));
+  PN5180DEBUG_PRINTF(F("wait for RF field to shut down (max %d ms)"), SETRF_OFF_TIMEOUT);
+  PN5180DEBUG_PRINTLN();
   PN5180DEBUG_OFF;
-  while (0 == (TX_RFOFF_IRQ_STAT & getIRQStatus())) {   // wait for RF field to shut down
-    if (millis() - startedWaiting > 500) {
+  unsigned long startedWaiting = millis();
+  uint32_t irqStatus;
+  while (1) {   // wait for RF field to shut down
+    if (!readRegister(IRQ_STATUS, &irqStatus)) {
       PN5180DEBUG_ON;
-      PN5180DEBUG_PRINTLN(F("*** ERROR: Set RF OFF timeout"));
+      PN5180ERROR(F("setRF_off() failed at readRegister()"));
+      PN5180DEBUG_EXIT;
+      return false;
+    }
+	if (0 != (TX_RFOFF_IRQ_STAT & irqStatus)) break;
+    if (millis() - startedWaiting > SETRF_OFF_TIMEOUT) {
+      PN5180DEBUG_ON;
+      PN5180ERROR(F("setRF_off() timeout failed waiting for TX_RFOFF_IRQ_STAT"));
       PN5180DEBUG_EXIT;
       return false; 
     }
-  };
-  PN5180DEBUG_ON;  
-  
-  clearIRQStatus(TX_RFOFF_IRQ_STAT);
+  }
+
+  //   clearIRQStatus(TX_RFOFF_IRQ_STAT);
+  if (!clearIRQStatus(TX_RFOFF_IRQ_STAT)) {
+    PN5180ERROR(F("setRF_on() failed at clearIRQStatus()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+
   PN5180DEBUG_EXIT;
   return true;
 }
@@ -679,6 +804,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   PN5180DEBUG_PRINTF(F("PN5180::transceiveCommand(*sendBuffer, sendBufferLen=%d, *recvBuffer, recvBufferLen=%d)"), sendBufferLen, recvBufferLen);
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_ENTER;
+  
   PN5180_SPI.beginTransaction(SPI_SETTINGS);
 #ifdef DEBUG
   PN5180DEBUG(F("Sending SPI frame: '"));
@@ -693,7 +819,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   unsigned long startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-      PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/0)");
+      PN5180ERROR("transceiveCommand() timeout waiting for BUSY=LOW (send/0)");
       PN5180_SPI.endTransaction();
       digitalWrite(PN5180_NSS, HIGH);
       PN5180DEBUG_EXIT;
@@ -708,7 +834,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (HIGH != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-      PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/3)");
+      PN5180ERROR("transceiveCommand() timeout waiting for BUSY=HIGH (send/3)");
       PN5180_SPI.endTransaction();
       digitalWrite(PN5180_NSS, HIGH);
       PN5180DEBUG_EXIT;
@@ -721,7 +847,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-      PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/5)");
+      PN5180ERROR("transceiveCommand() timeout waiting for BUSY=LOW (send/5)");
       PN5180_SPI.endTransaction();
       digitalWrite(PN5180_NSS, HIGH);
       PN5180DEBUG_EXIT;
@@ -747,7 +873,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis(); //delay(1);
   while (HIGH != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-      PN5180DEBUG("*** ERROR: transceiveCommand timeout (receive/3)");
+      PN5180ERROR("transceiveCommand() timeout waiting for BUSY=HIGH (receive/3)");
       PN5180_SPI.endTransaction();
       digitalWrite(PN5180_NSS, HIGH);
       PN5180DEBUG_EXIT;
@@ -760,7 +886,7 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
     if (millis() - startedWaiting > commandTimeout) {
-      PN5180DEBUG("*** ERROR: transceiveCommand timeout (receive/5)");
+      PN5180ERROR("transceiveCommand() timeout waiting for BUSY=LOW (receive/5)");
       PN5180_SPI.endTransaction();
       digitalWrite(PN5180_NSS, HIGH);
       PN5180DEBUG_EXIT;
@@ -799,7 +925,7 @@ void PN5180::reset() {
   while (0 == (IDLE_IRQ_STAT & getIRQStatus())) {   // wait for system to start up (with timeout)
     if (millis() - startedWaiting > commandTimeout) {
       PN5180DEBUG_ON;
-      PN5180DEBUG_PRINTLN(F("*** ERROR: reset failed (timeout)!!!"));
+      PN5180ERROR(F("reset() timeout waiting for IDLE_IRQ_STAT"));
       // try again with larger time
       digitalWrite(PN5180_RST, LOW);  
       delay(10);
@@ -823,7 +949,13 @@ uint32_t PN5180::getIRQStatus() {
 
   PN5180DEBUG_PRINTLN(F("Read IRQ-Status register..."));
   uint32_t irqStatus;
-  readRegister(IRQ_STATUS, &irqStatus);
+
+  //   readRegister(IRQ_STATUS, &irqStatus);
+  if (!readRegister(IRQ_STATUS, &irqStatus)) {
+    PN5180ERROR(F("getIRQStatus() failed at readRegister()"));
+    PN5180DEBUG_EXIT;
+    return 0L;
+  }
 
   PN5180DEBUG(F("IRQ-Status=0x"));
   PN5180DEBUG(formatHex(irqStatus));
@@ -839,19 +971,26 @@ bool PN5180::clearIRQStatus(uint32_t irqMask) {
   PN5180DEBUG_ENTER;
 
   PN5180DEBUG_PRINTLN(F("Clear IRQ-Status with mask"));
-  bool ret = writeRegister(IRQ_CLEAR, irqMask);
+
+  //bool ret = writeRegister(IRQ_CLEAR, irqMask);
+  if (!writeRegister(IRQ_CLEAR, irqMask)) {
+    PN5180ERROR(F("clearIRQStatus() failed at writeRegister()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
 
   PN5180DEBUG_EXIT;
-  return ret;
+  return true;
 }
 
-/*
- * Get TRANSCEIVE_STATE from RF_STATUS register
- */
 #ifdef DEBUG
 extern void showIRQStatus(uint32_t);
 #endif
 
+
+/*
+ * Get TRANSCEIVE_STATE from RF_STATUS register
+ */
 PN5180TransceiveStat PN5180::getTransceiveState() {
   PN5180DEBUG_PRINT(F("PN5180::getTransceiveState()"));
   PN5180DEBUG_PRINTLN();
@@ -865,7 +1004,7 @@ PN5180TransceiveStat PN5180::getTransceiveState() {
 #ifdef DEBUG
     showIRQStatus(getIRQStatus());
 #endif
-    PN5180DEBUG_PRINTLN(F("ERROR reading RF_STATUS register."));
+    PN5180ERROR(F("getTransceiveState() failed reading RF_STATUS register."));
     ret = PN5180TransceiveStat(0);
     PN5180DEBUG_EXIT;
     return ret;
@@ -890,4 +1029,119 @@ PN5180TransceiveStat PN5180::getTransceiveState() {
   ret = PN5180TransceiveStat(state);
   PN5180DEBUG_EXIT;
   return ret;
+}
+
+/*
+ * SEND_DATA - 0x09
+ * This instruction is used to write data into the transmission buffer, the START_SEND bit is automatically set.
+ *
+ * Payload       Length(byte)    Value/Description
+ * Command code  1               0x09
+ * Parameter     1               Number of valid bits in last Byte
+ *               1-260           Array of up to 260 elements {Transmit data}
+ *                               1 Byte Transmit Data
+ * Response:     -               -
+ *
+ * This command writes data to the RF transmission buffer and starts the RF transmission.
+ * The parameter ‘Number of valid bits in last Byte’ indicates the exact number of bits to be
+ * transmitted for the last byte (for non-byte aligned frames).
+ *
+ * Precondition: Host shall configure the Transceiver by setting the register
+ * SYSTEM_CONFIG.COMMAND to 0x3 before using the SEND_DATA command, as
+ * the command SEND_DATA is only writing data to the transmission buffer and starts the
+ * transmission but does not perform any configuration.
+ *
+ * Parameter: 'valid bits in last byte'
+ *
+ * Note: When the command terminates, the transmission might still be ongoing, i.e. the command starts the
+ * transmission but does not wait for the end of transmission.
+ *
+ * Condition: The size of ‘Tx Data’ field must be in the range from 0 to 260, inclusive (the 0 byte length
+ * allows a symbol only transmission when the TX_DATA_ENABLE is cleared).‘Number of
+ * valid bits in last Byte’ field must be in the range from 0 to 7. The command must not be
+ * called during an ongoing RF transmission. Transceiver must be in ‘WaitTransmit’ state
+ * with ‘Transceive’ command set. If the condition is not fulfilled, an exception is raised.
+ *
+ * Returns: true on success
+ */
+bool PN5180::cmd_SendData(const uint8_t *data, int len, uint8_t validBits) {
+  PN5180DEBUG_PRINTF(F("PN5180::cmd_sendData(*data, len=%d, validBits=%d)"), len, validBits);
+  PN5180DEBUG_PRINTLN();
+  
+  uint8_t buffer[len+2];
+  buffer[0] = PN5180_SEND_DATA;
+  buffer[1] = validBits; // number of valid bits of last byte are transmitted (0 = all bits are transmitted)
+  for (int i=0; i<len; i++) {
+    buffer[2+i] = data[i];
+  }
+
+  if (!transceiveCommand(buffer, len+2)) {
+    PN5180ERROR(F("sendData() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+  
+  PN5180DEBUG_EXIT;
+  return true;
+}
+
+/*
+ * RF_ON - 0x16
+ * This instruction switch on the RF Field
+ *
+ * Payload       Length(byte)    Value/Description
+ * Command code  1               0x16
+ * Parameter     1               Bit0 == 1: disable collision avoidance according to ISO18092
+ *                               Bit1 == 1: Use Active Communication mode according to ISO18092
+ * Response:     -               -
+ *
+ * This command is used to switch on the internal RF field. If enabled the TX_RFON_IRQ is
+ * set after the field is switched on.
+ *
+ * Returns: true on success
+ */
+bool PN5180::cmd_RfOn(uint8_t parameter) {
+  PN5180DEBUG_PRINTLN(F("PN5180::cmd_RfOn()"));
+  PN5180DEBUG_ENTER;
+
+  uint8_t cmd[] = { PN5180_RF_ON, parameter };
+
+  if (!transceiveCommand(cmd, sizeof(cmd))) {
+    PN5180ERROR(F("cmd_RfOn() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+
+  PN5180DEBUG_EXIT;
+  return true;
+}
+
+/*
+ * RF_OFF - 0x17
+ * This instruction switch off the RF Field	
+ *
+ * Payload       Length(byte)    Value/Description
+ * Command code  1               0x17
+ * Parameter     1               dummy byte, any value accepted
+ * Response:     -               -
+ *
+ * This command is used to switch off the internal RF field. If enabled, the TX_RFOFF_IRQ is set after the field is
+ * switched off.
+ *
+ * Returns: true on success
+ */
+bool PN5180::cmd_RfOff(uint8_t parameter) {
+  PN5180DEBUG_PRINTLN(F("PN5180::cmd_RfOff()"));
+  PN5180DEBUG_ENTER;
+
+  uint8_t cmd[] = { PN5180_RF_OFF, parameter };
+
+  if (!transceiveCommand(cmd, sizeof(cmd))) {
+    PN5180ERROR(F("cmd_RfOff() failed at transceiveCommand()"));
+    PN5180DEBUG_EXIT;
+    return false;
+  }
+
+  PN5180DEBUG_EXIT;
+  return true;
 }

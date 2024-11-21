@@ -21,25 +21,53 @@
 
 #include <SPI.h>
 
-// PN5180 Registers
-#define SYSTEM_CONFIG       (0x00)
-#define IRQ_ENABLE          (0x01)
-#define IRQ_STATUS          (0x02)
-#define IRQ_CLEAR           (0x03)
-#define TRANSCEIVE_CONTROL  (0x04)
-#define TIMER1_RELOAD       (0x0c)
-#define TIMER1_CONFIG       (0x0f)
-#define RX_WAIT_CONFIG      (0x11)
-#define CRC_RX_CONFIG       (0x12)
-#define RX_STATUS           (0x13)
-#define TX_WAIT_CONFIG      (0x17)
-#define TX_CONFIG           (0x18)
-#define CRC_TX_CONFIG       (0x19)
-#define RF_STATUS           (0x1d)
-#define SYSTEM_STATUS       (0x24)
-#define TEMP_CONTROL        (0x25)
-#define AGC_REF_CONFIG      (0x26)
-
+// PN5180 Registers (https://www.nxp.com/docs/en/data-sheet/PN5180A0XX-C1-C2.pdf, pp 87-88)
+#define SYSTEM_CONFIG              (0x00)
+#define IRQ_ENABLE                 (0x01)
+#define IRQ_STATUS                 (0x02)
+#define IRQ_CLEAR                  (0x03)
+#define TRANSCEIVE_CONTROL         (0x04)
+//#define PADCONFIG                  (0x05)
+//#define RFU                        (0x06)
+//#define PADOUT                     (0x07)
+//#define TIMER0_STATUS              (0x08)
+//#define TIMER1_STATUS              (0x09)
+//#define TIMER2_STATUS              (0x0a)
+//#define TIMER0_RELOAD              (0x0b)
+#define TIMER1_RELOAD              (0x0c)
+//#define TIMER2_RELOAD              (0x0d)
+//#define TIMER0_CONFIG              (0x0e)
+#define TIMER1_CONFIG              (0x0f)
+//#define TIMER2_CONFIG              (0x10)
+#define RX_WAIT_CONFIG             (0x11)
+#define CRC_RX_CONFIG              (0x12)
+#define RX_STATUS                  (0x13)
+//#define TX_UNDERSHOOT_CONFIG       (0x14)
+//#define TX_OVERSHOOT_CONFIG        (0x15)
+//#define TX_DATA_MOD                (0x16)
+#define TX_WAIT_CONFIG             (0x17)
+#define TX_CONFIG                  (0x18)
+#define CRC_TX_CONFIG              (0x19)
+//#define SIGPRO_CONFIG              (0x1a)
+//#define SIGPRO_CM_CONFIG           (0x1b)
+//#define SIGPRO_RM_CONFIG           (0x1c)
+#define RF_STATUS                  (0x1d)
+//#define AGC_CONFIG                 (0x1e)
+//#define AGC_VALUE                  (0x1f)
+//#define RF_CONTROL_TX              (0x20)
+//#define RF_CONTROL_TX_CLK          (0x21)
+//#define RF_CONTROL_RX              (0x22)
+#define LD_CONTROL                 (0x23)
+#define SYSTEM_STATUS              (0x24)
+#define TEMP_CONTROL               (0x25)
+#define AGC_REF_CONFIG             (0x26)
+//#define DPC_CONFIG                 (0x27)
+//#define EMD_CONTROL                (0x28)
+//#define ANT_CONTROL                (0x29)
+//#define SIGPRO_RM_CONFIG_EXTENSION (0x39) // requires FW 3.8 or later
+// PN5180 Registers - additional registers(https://www.nxp.com/docs/en/data-sheet/PN5180A0XX_C3_C4.pdf, pp 80-81)
+//#define TX_CONTROL                 (0x36)
+//#define FELICA_EMD_CONTROL         (0x43) // requires FW 4.1 or later
 
 // PN5180 EEPROM Addresses
 #define DIE_IDENTIFIER      (0x00)
@@ -69,17 +97,28 @@ enum PN5180TransceiveStat {
   PN5180_TS_RESERVED = 7
 };
 
-// PN5180 IRQ_STATUS
-#define RX_IRQ_STAT         	(1<<0)  // End of RF receiption IRQ
-#define TX_IRQ_STAT         	(1<<1)  // End of RF transmission IRQ
-#define IDLE_IRQ_STAT       	(1<<2)  // IDLE IRQ
-#define RFOFF_DET_IRQ_STAT  	(1<<6)  // RF Field OFF detection IRQ
-#define RFON_DET_IRQ_STAT   	(1<<7)  // RF Field ON detection IRQ
-#define TX_RFOFF_IRQ_STAT   	(1<<8)  // RF Field OFF in PCD IRQ
-#define TX_RFON_IRQ_STAT    	(1<<9)  // RF Field ON in PCD IRQ
-#define RX_SOF_DET_IRQ_STAT 	(1<<14) // RF SOF Detection IRQ
-#define GENERAL_ERROR_IRQ_STAT 	(1<<17) // General error IRQ
-#define LPCD_IRQ_STAT 			(1<<19) // LPCD Detection IRQ
+// PN5180 IRQ_STATUS register (https://www.nxp.com/docs/en/data-sheet/PN5180A0XX_C3_C4.pdf, pages 83-84)
+#define RX_IRQ_STAT              (1<<0)  // End of RF receiption IRQ
+#define TX_IRQ_STAT              (1<<1)  // End of RF transmission IRQ
+#define IDLE_IRQ_STAT            (1<<2)  // IDLE IRQ
+#define MODE_DETECTED_IRQ_STAT   (1<<3)  // External modulation scheme detection IRQ
+#define CARD_ACTIVATED_IRQ_STAT  (1<<4)  // Activated as a Card IRQ
+#define STATE_CHANGE_IRQ_STAT    (1<<5)  // State Change in the transceive state machine IRQ
+#define RFOFF_DET_IRQ_STAT       (1<<6)  // RF Field OFF detection IRQ
+#define RFON_DET_IRQ_STAT        (1<<7)  // RF Field ON detection IRQ
+#define TX_RFOFF_IRQ_STAT        (1<<8)  // RF Field OFF in PCD IRQ
+#define TX_RFON_IRQ_STAT         (1<<9)  // RF Field ON in PCD IRQ
+#define RF_ACTIVE_ERROR_IRQ_STAT (1<<10) // RF active error IRQ
+#define TIMER0_IRQ_STAT          (1<<11) // Timer0 IRQ
+#define TIMER1_IRQ_STAT          (1<<12) // Timer1 IRQ
+#define TIMER2_IRQ_STAT          (1<<13) // Timer2 IRQ
+#define RX_SOF_DET_IRQ_STAT      (1<<14) // RF SOF Detection IRQ
+#define RX_SC_DET_IRQ_STAT       (1<<15) // RX Subcarrier Detection IRQ
+#define TEMPSENS_ERROR_IRQ_STAT  (1<<16) // Temperature Sensor IRQ
+#define GENERAL_ERROR_IRQ_STAT   (1<<17) // General error IRQ
+#define HV_ERROR_IRQ_STAT        (1<<18) // EEPROM Failure during Programming IRQ
+#define LPCD_IRQ_STAT            (1<<19) // LPCD Detection IRQ
+// Bits 20-31 RFU (Reserved for Future Use)
 
 #define MIFARE_CLASSIC_KEYA 0x60  // Mifare Classic key A
 #define MIFARE_CLASSIC_KEYB 0x61  // Mifare Classic key B
@@ -104,9 +143,28 @@ public:
   void begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t SSpin=-1);
   void end();
 
+
+public:
+
+
   /*
-   * PN5180 direct commands with host interface
+   * PN5180 Direct Commands
+   *
+   * These functions are the low level interface to the device:
+   * 1. Verify command's parameters
+   * 2. Prepare the transmission frame
+   * 3. Call transceiveCommand() to send the command
+   * 4. No state checking
    */
+public:
+  /* 0x09 - SEND_DATA */
+  bool cmd_SendData(const uint8_t *data, int len, uint8_t validBits);
+  /* 0x16 - RF_ON */
+  bool cmd_RfOn(uint8_t parameter);
+  /* 0x17 - RF_OFF */
+  bool cmd_RfOff(uint8_t parameter);
+
+
 public:
   /* cmd 0x00 */
   bool writeRegister(uint8_t reg, uint32_t value);
@@ -150,8 +208,9 @@ public:
 public:
   void reset();
 
-  uint16_t commandTimeout = 500;
+  uint16_t commandTimeout = 5000;
   uint32_t getIRQStatus();
+  bool waitIRQ(uint8_t irq);
   bool clearIRQStatus(uint32_t irqMask);
 
   PN5180TransceiveStat getTransceiveState();
