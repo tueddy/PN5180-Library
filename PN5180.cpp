@@ -592,12 +592,13 @@ bool PN5180::setRF_on() {
   PN5180DEBUG_PRINTLN(F("wait for RF field to set up (max 500ms)"));
   PN5180DEBUG_OFF;
   while (0 == (TX_RFON_IRQ_STAT & getIRQStatus())) {   // wait for RF field to set up (max 500ms)
-    if (millis() - startedWaiting > 500) {
-      PN5180DEBUG_ON;
-      PN5180DEBUG_PRINTLN(F("*** ERROR: Set RF ON timeout"));
-      PN5180DEBUG_EXIT;
-      return false; 
-    }
+	  delay(1);
+	  if (millis() - startedWaiting > 500) {
+		  PN5180DEBUG_ON;
+		  PN5180DEBUG_PRINTLN(F("*** ERROR: Set RF ON timeout"));
+		  PN5180DEBUG_EXIT;
+		  return false;
+	  }
   };
   PN5180DEBUG_ON;
   
@@ -623,12 +624,13 @@ bool PN5180::setRF_off() {
   PN5180DEBUG_PRINTLN(F("wait for RF field to shut down (max 500ms)"));
   PN5180DEBUG_OFF;
   while (0 == (TX_RFOFF_IRQ_STAT & getIRQStatus())) {   // wait for RF field to shut down
-    if (millis() - startedWaiting > 500) {
-      PN5180DEBUG_ON;
-      PN5180DEBUG_PRINTLN(F("*** ERROR: Set RF OFF timeout"));
-      PN5180DEBUG_EXIT;
-      return false; 
-    }
+	  delay(1);
+	  if (millis() - startedWaiting > 500) {
+		  PN5180DEBUG_ON;
+		  PN5180DEBUG_PRINTLN(F("*** ERROR: Set RF OFF timeout"));
+		  PN5180DEBUG_EXIT;
+		  return false;
+	  }
   };
   PN5180DEBUG_ON;  
   
@@ -692,13 +694,14 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   // 0.
   unsigned long startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
-    if (millis() - startedWaiting > commandTimeout) {
-      PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/0)");
-      PN5180_SPI.endTransaction();
-      digitalWrite(PN5180_NSS, HIGH);
-      PN5180DEBUG_EXIT;
-      return false;
-    };
+	  delay(1);
+	  if (millis() - startedWaiting > commandTimeout) {
+		  PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/0)");
+		  PN5180_SPI.endTransaction();
+		  digitalWrite(PN5180_NSS, HIGH);
+		  PN5180DEBUG_EXIT;
+		  return false;
+	  };
   }; // wait until busy is low
   // 1.
   digitalWrite(PN5180_NSS, LOW); delay(1);
@@ -707,26 +710,28 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   // 3.
   startedWaiting = millis();
   while (HIGH != digitalRead(PN5180_BUSY)) {
-    if (millis() - startedWaiting > commandTimeout) {
-      PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/3)");
-      PN5180_SPI.endTransaction();
-      digitalWrite(PN5180_NSS, HIGH);
-      PN5180DEBUG_EXIT;
-      return false;
-    };
+	  delay(1);
+	  if (millis() - startedWaiting > commandTimeout) {
+		  PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/3)");
+		  PN5180_SPI.endTransaction();
+		  digitalWrite(PN5180_NSS, HIGH);
+		  PN5180DEBUG_EXIT;
+		  return false;
+	  };
   }; // wait until busy is high
   // 4.
   digitalWrite(PN5180_NSS, HIGH); delay(1);
   // 5.
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
-    if (millis() - startedWaiting > commandTimeout) {
-      PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/5)");
-      PN5180_SPI.endTransaction();
-      digitalWrite(PN5180_NSS, HIGH);
-      PN5180DEBUG_EXIT;
-      return false;
-    };
+	  delay(1);
+	  if (millis() - startedWaiting > commandTimeout) {
+		  PN5180DEBUG("*** ERROR: transceiveCommand timeout (send/5)");
+		  PN5180_SPI.endTransaction();
+		  digitalWrite(PN5180_NSS, HIGH);
+		  PN5180DEBUG_EXIT;
+		  return false;
+	  };
   }; // wait until busy is low
 
   // check, if write-only
@@ -746,26 +751,28 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
   // 3.
   startedWaiting = millis(); //delay(1);
   while (HIGH != digitalRead(PN5180_BUSY)) {
-    if (millis() - startedWaiting > commandTimeout) {
-      PN5180DEBUG("*** ERROR: transceiveCommand timeout (receive/3)");
-      PN5180_SPI.endTransaction();
-      digitalWrite(PN5180_NSS, HIGH);
-      PN5180DEBUG_EXIT;
-      return false;
-    };
+	  delay(1);
+	  if (millis() - startedWaiting > commandTimeout) {
+		  PN5180DEBUG("*** ERROR: transceiveCommand timeout (receive/3)");
+		  PN5180_SPI.endTransaction();
+		  digitalWrite(PN5180_NSS, HIGH);
+		  PN5180DEBUG_EXIT;
+		  return false;
+	  };
   }; // wait until busy is high
   // 4.
   digitalWrite(PN5180_NSS, HIGH); 
   // 5.
   startedWaiting = millis();
   while (LOW != digitalRead(PN5180_BUSY)) {
-    if (millis() - startedWaiting > commandTimeout) {
-      PN5180DEBUG("*** ERROR: transceiveCommand timeout (receive/5)");
-      PN5180_SPI.endTransaction();
-      digitalWrite(PN5180_NSS, HIGH);
-      PN5180DEBUG_EXIT;
-      return false;
-    };
+	  delay(1);
+	  if (millis() - startedWaiting > commandTimeout) {
+		  PN5180DEBUG("*** ERROR: transceiveCommand timeout (receive/5)");
+		  PN5180_SPI.endTransaction();
+		  digitalWrite(PN5180_NSS, HIGH);
+		  PN5180DEBUG_EXIT;
+		  return false;
+	  };
   }; // wait until busy is low
 
 #ifdef DEBUG
@@ -797,17 +804,18 @@ void PN5180::reset() {
   PN5180DEBUG_PRINTLN();
   PN5180DEBUG_OFF;
   while (0 == (IDLE_IRQ_STAT & getIRQStatus())) {   // wait for system to start up (with timeout)
-    if (millis() - startedWaiting > commandTimeout) {
-      PN5180DEBUG_ON;
-      PN5180DEBUG_PRINTLN(F("*** ERROR: reset failed (timeout)!!!"));
-      // try again with larger time
-      digitalWrite(PN5180_RST, LOW);  
-      delay(10);
-      digitalWrite(PN5180_RST, HIGH); 
-      delay(50);
-      PN5180DEBUG_EXIT;
-      return;
-    }
+	  delay(1);
+	  if (millis() - startedWaiting > commandTimeout) {
+		  PN5180DEBUG_ON;
+		  PN5180DEBUG_PRINTLN(F("*** ERROR: reset failed (timeout)!!!"));
+		  // try again with larger time
+		  digitalWrite(PN5180_RST, LOW);
+		  delay(10);
+		  digitalWrite(PN5180_RST, HIGH);
+		  delay(50);
+		  PN5180DEBUG_EXIT;
+		  return;
+	  }
   }
   PN5180DEBUG_ON;
   PN5180DEBUG_EXIT;

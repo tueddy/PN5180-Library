@@ -177,7 +177,8 @@ int8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	unsigned long startedWaiting = millis();
     PN5180DEBUG_PRINTLN(F("wait for PN5180_TS_WaitTransmit (max 200ms)"));
     PN5180DEBUG_OFF;
-	while (PN5180_TS_WaitTransmit != getTransceiveState()) {   
+	while (PN5180_TS_WaitTransmit != getTransceiveState()) {
+		delay(1);
 		if (millis() - startedWaiting > 200) {
 			PN5180DEBUG_ON;
 			PN5180DEBUG_PRINTLN(F("*** ERROR: timeout in PN5180_TS_WaitTransmit!"));
