@@ -8,6 +8,10 @@ Arduino Uno / Arduino ESP-32 library for PN5180-NFC Module from NXP Semiconducto
 Release Notes:
 
 	
+Version 2.3.5 - 15.05.2025
+
+	*  Less blocking delays when using other tasks #15, thanks to @joe91 !
+
 Version 2.3.4 - 31.10.2024
 
 	* Better debug #13, thanks to @mjmeans !
