@@ -112,6 +112,11 @@ void PN5180::end() {
   PN5180DEBUG_EXIT;
 }
 
+// Update SPI Settings
+void PN5180::setSPISettingsFrecuency(uint32_t frecuency){
+  SPI_SETTINGS = SPISettings(frecuency, MSBFIRST, SPI_MODE0);
+}
+
 /*
  * WRITE_REGISTER - 0x00
  * This command is used to write a 32-bit value (little endian) to a configuration register.
