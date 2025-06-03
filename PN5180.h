@@ -103,6 +103,7 @@ public:
 
   void begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t SSpin=-1);
   void end();
+  void setSPISettingsFrecuency(uint32_t frecuency);
 
   /*
    * PN5180 direct commands with host interface
