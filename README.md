@@ -7,6 +7,8 @@ Arduino Uno / Arduino ESP-32 library for PN5180-NFC Module from NXP Semiconducto
 
 Release Notes:
 
+Version 2.3.6 - 03.06.2025
+	*  Allow to change SPI frequency #16, thanks to @saidmoya12 !
 	
 Version 2.3.5 - 15.05.2025
 
